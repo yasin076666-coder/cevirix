@@ -172,6 +172,22 @@ s = replace_once(
 write(p, s)
 print("manifest güncellendi")
 
+# 3b) Göreli sınıf adları paket adına göre çözülür: paket değiştiği için tam adı yaz
+layout_dir = os.path.join(main, "res", "layout")
+fixed = 0
+for fn in os.listdir(layout_dir):
+    if not fn.endswith(".xml"):
+        continue
+    fp = os.path.join(layout_dir, fn)
+    t = read(fp)
+    n = re.sub(r'app:layout_behavior="\.', 'app:layout_behavior="com.metallic.chiaki.', t)
+    if n != t:
+        fixed += 1
+        write(fp, n)
+if fixed == 0:
+    sys.exit("HATA: göreli layout_behavior bulunamadı")
+print(f"göreli sınıf adları düzeltildi ({fixed} dosya)")
+
 # 4) fileprovider sabiti
 p = os.path.join(main, "java", "com", "metallic", "chiaki", "common", "LogManager.kt")
 s = read(p)
