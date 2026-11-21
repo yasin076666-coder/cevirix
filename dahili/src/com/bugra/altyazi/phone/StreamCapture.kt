@@ -46,6 +46,8 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
     @Volatile private var copyFail = 0L
     @Volatile private var lastErr = 0
     private var hud: TextView? = null
+    private var hudImage: android.widget.ImageView? = null
+    private var shownPreview: Bitmap? = null
 
     private val tick = object : Runnable {
         override fun run() {
@@ -193,25 +195,36 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
     private fun addHud() {
         ui.post {
             try {
+                val box = android.widget.LinearLayout(activity).apply {
+                    orientation = android.widget.LinearLayout.VERTICAL
+                    setBackgroundColor(Color.argb(150, 0, 0, 0))
+                    setPadding(12, 6, 12, 6)
+                    isClickable = false
+                    isFocusable = false
+                }
                 val tv = TextView(activity).apply {
                     setTextColor(Color.WHITE)
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                    setBackgroundColor(Color.argb(150, 0, 0, 0))
-                    setPadding(16, 6, 16, 6)
                     maxLines = 3
-                    isClickable = false
-                    isFocusable = false
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }
+                val img = android.widget.ImageView(activity).apply {
+                    adjustViewBounds = true
+                    maxHeight = (activity.resources.displayMetrics.density * 48).toInt()
+                    scaleType = android.widget.ImageView.ScaleType.FIT_START
+                }
+                box.addView(tv)
+                box.addView(img)
                 activity.addContentView(
-                    tv,
+                    box,
                     FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        (activity.resources.displayMetrics.widthPixels * 0.5f).toInt(),
                         FrameLayout.LayoutParams.WRAP_CONTENT,
                         Gravity.TOP or Gravity.CENTER_HORIZONTAL
                     )
                 )
                 hud = tv
+                hudImage = img
             } catch (e: Exception) { }
         }
     }
@@ -223,6 +236,11 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         val errText = if (s.copyFail > 0) " hata ${s.copyFail} (kod ${s.copyErr})" else ""
         val raw = s.rawText.take(60)
         val tr = s.lastTr.take(70)
+        val pv = AppState.preview.value
+        if (pv != null && pv !== shownPreview) {
+            shownPreview = pv
+            hudImage?.setImageBitmap(pv)
+        }
         tv.text = "Çevirix · $tvState · kopya ${s.copyOk}$errText · okuma ${s.ocrRuns}\n" +
             "EN: ${raw.ifBlank { "—" }}\nTR: ${tr.ifBlank { "—" }}"
     }
