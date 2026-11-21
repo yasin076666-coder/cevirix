@@ -44,6 +44,7 @@ def copy_tree(src, dst):
 # 1) Kaynak kodlar ve kaynaklar
 copy_tree(os.path.join(dahili, "src"), os.path.join(main, "java"))
 copy_tree(os.path.join(dahili, "res"), os.path.join(main, "res"))
+copy_tree(os.path.join(dahili, "assets"), os.path.join(main, "assets"))
 shutil.copy2(os.path.join(dahili, "strings_tr.xml"), os.path.join(main, "res", "values", "strings.xml"))
 shutil.copy2(os.path.join(repo, "keystore", "altyazi.jks"), os.path.join(app, "cevirix.jks"))
 print("kaynaklar kopyalandı")

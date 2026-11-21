@@ -7,7 +7,7 @@ import kotlinx.coroutines.withContext
 /**
  * Çeviri yöneticisi. Üç parça:
  * - cached(): daha önce çevrilmiş satır (anında)
- * - offline(): telefon içi ML Kit çevirisi (~0,1 sn, kitap dili)
+ * - offline(): sokak sözlüğü + telefon içi ML Kit çevirisi (~0,1 sn)
  * - gemini(): Gemini ile GTA sokak dili (0,5-1,5 sn)
  */
 class Translator {
@@ -31,13 +31,19 @@ class Translator {
     val geminiAvailable: Boolean
         get() = Prefs.geminiEnabled && Prefs.geminiKey.isNotBlank() && SystemClock.elapsedRealtime() >= pausedUntil
 
-    /** Çevrimdışı hızlı çeviri. Paket hazır değilse indirmeyi başlatır ve null döner. */
+    /**
+     * Çevrimdışı hızlı çeviri + sokak dili katmanı.
+     * Sözlükteki kalıplar paket olmasa bile anında döner; diğerleri ML Kit ile çevrilip samimileştirilir.
+     */
     suspend fun offline(en: String): String? {
+        OfflineSlang.translateFromPhrasesOnly(en)?.let { return it }
         if (OfflineTranslator.state.value != OfflineTranslator.ModelState.READY) {
             OfflineTranslator.download()
             return null
         }
-        return OfflineTranslator.translate(en)?.takeIf { it.isNotBlank() }
+        return OfflineSlang.translate(en) { text ->
+            OfflineTranslator.translate(text)?.takeIf { it.isNotBlank() }
+        }?.takeIf { it.isNotBlank() }
     }
 
     /**

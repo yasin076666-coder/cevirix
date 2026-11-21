@@ -9,6 +9,7 @@ import java.io.StringWriter
 class App : Application() {
     override fun onCreate() {
         super.onCreate()
+        Thread { OfflineSlang.load(this) }.start()
         Prefs.init(this)
         OfflineTranslator.checkDownloaded()
         installCrashCatcher()

@@ -359,7 +359,8 @@ class CevirixActivity : AppCompatActivity() {
             OfflineTranslator.ModelState.FAILED -> "Paket indirilemedi. İnterneti kontrol edip tekrar deneyin." to true
             else -> "Çevrimdışı Türkçe paketi (yedek, ~30 MB) yüklü değil" to true
         }
-        offlineText.text = text
+        val slang = OfflineSlang.size
+        offlineText.text = if (slang > 0) "$text\nSokak sözlüğü: $slang kalıp ✓" else text
         offlineBtn.visibility = if (showBtn) View.VISIBLE else View.GONE
     }
 
