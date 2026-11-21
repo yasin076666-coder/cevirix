@@ -89,7 +89,7 @@ object Prefs {
 
     /** PS5'ten telefona gelen oyun sesi kapalı mı? */
     var psMuted: Boolean
-        get() = sp.getBoolean("ps_muted", false)
+        get() = sp.getBoolean("ps_muted", true)
         set(v) = sp.edit().putBoolean("ps_muted", v).apply()
 
     var tvShowEn: Boolean
