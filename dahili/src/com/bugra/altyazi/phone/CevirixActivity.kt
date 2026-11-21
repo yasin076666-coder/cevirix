@@ -124,8 +124,33 @@ class CevirixActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         renderPsn()
+        showLastCrash()
         AppState.update { it.copy(phoneIp = NetUtil.localIp()) }
         OfflineTranslator.checkDownloaded()
+    }
+
+    // ---------------------------------------------------------------- hata raporu
+
+    private fun showLastCrash() {
+        val text = App.takeLastCrash(this) ?: App.takeNativeCrash(this) ?: return
+        val tv = TextView(this).apply {
+            this.text = text
+            textSize = 11f
+            setTextIsSelectable(true)
+            setPadding(40, 24, 40, 24)
+        }
+        val scroll = android.widget.ScrollView(this).apply { addView(tv) }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Son çökmenin ayrıntısı")
+            .setMessage("Bu ekranın görüntüsünü gönderin, sorunu buna göre düzelteceğim.")
+            .setView(scroll)
+            .setPositiveButton("Kopyala") { _, _ ->
+                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("cevirix-hata", text))
+                toast("Hata metni kopyalandı")
+            }
+            .setNegativeButton("Kapat", null)
+            .show()
     }
 
     // ---------------------------------------------------------------- dahili Remote Play
@@ -142,6 +167,7 @@ class CevirixActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.ps5Btn).setOnClickListener {
             if (CaptureService.instance != null) stopCapture()
             try {
+                App.markPs5Opening(this)
                 startActivity(Intent(this, com.metallic.chiaki.main.MainActivity::class.java))
             } catch (e: Exception) {
                 toast("PS5 ekranı açılamadı: ${e.message}")
