@@ -112,6 +112,8 @@ class CevirixActivity : AppCompatActivity() {
         setupDubbing()
         setupRoi()
         setupTv()
+        setupNav()
+        setupSteps()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -193,12 +195,91 @@ class CevirixActivity : AppCompatActivity() {
         if (!::psnStatus.isInitialized) return
         val id = Prefs.psnAccountId
         if (id.isBlank()) {
-            psnStatus.text = "PlayStation hesabı: bağlı değil"
-            psnLoginBtn.text = "1) PlayStation hesabıyla giriş yap"
+            psnStatus.text = "Henüz giriş yapılmadı."
+            psnLoginBtn.text = "PlayStation ile giriş yap"
         } else {
-            psnStatus.text = "PlayStation hesabı: bağlı ✓ (kimlik: $id)"
+            psnStatus.text = "Giriş yapıldı. Hesap kimliği: $id"
             psnLoginBtn.text = "Hesabı değiştir"
         }
+        renderSteps(AppState.status.value)
+    }
+
+    // ---------------------------------------------------------------- sekmeler
+
+    private lateinit var pages: Map<Int, View>
+
+    private fun setupNav() {
+        pages = mapOf(
+            R.id.navPlay to findViewById(R.id.pagePlay),
+            R.id.navTranslate to findViewById(R.id.pageTranslate),
+            R.id.navTv to findViewById(R.id.pageTv),
+            R.id.navMore to findViewById(R.id.pageMore)
+        )
+        val nav = findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNav)
+        nav.setOnItemSelectedListener { item ->
+            showPage(item.itemId)
+            true
+        }
+        nav.setOnItemReselectedListener { item ->
+            (pages[item.itemId] as? androidx.core.widget.NestedScrollView)?.smoothScrollTo(0, 0)
+        }
+    }
+
+    private fun showPage(id: Int) {
+        for ((k, v) in pages) {
+            if (k == id) {
+                if (v.visibility != View.VISIBLE) {
+                    v.alpha = 0f
+                    v.visibility = View.VISIBLE
+                    v.animate().alpha(1f).setDuration(160).start()
+                }
+            } else {
+                v.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun goTo(navId: Int) {
+        findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNav).selectedItemId = navId
+    }
+
+    // ---------------------------------------------------------------- bağlantı adımları
+
+    private fun setupSteps() {
+        findViewById<View>(R.id.stepAccount).setOnClickListener {
+            startActivity(Intent(this, PsnLoginActivity::class.java))
+        }
+        findViewById<View>(R.id.stepPs5).setOnClickListener {
+            findViewById<MaterialButton>(R.id.ps5Btn).performClick()
+        }
+        findViewById<View>(R.id.stepTv).setOnClickListener {
+            if (AppState.status.value.tvClients > 0) {
+                if (!CevirixEngine.sendTest()) toast("Test altyazısı gönderilemedi")
+                else toast("TV'ye test altyazısı gönderildi")
+            } else {
+                toast("TV'de Çevirix TV uygulamasını aç. Telefon ve TV aynı Wi-Fi'de olmalı.")
+            }
+        }
+        renderSteps(AppState.status.value)
+    }
+
+    private fun renderSteps(s: AppState.Status) {
+        if (!::psnStatus.isInitialized) return
+        val accountOk = Prefs.psnAccountId.isNotBlank()
+        val ps5Ok = s.copyOk > 0 && s.source.contains("Remote")
+        val tvOk = s.tvClients > 0
+        paintStep(R.id.stepAccountIcon, R.id.stepAccountState, accountOk, "Bağlı", "Giriş yap")
+        paintStep(R.id.stepPs5Icon, R.id.stepPs5State, ps5Ok, "Okunuyor", "Bağlan")
+        paintStep(R.id.stepTvIcon, R.id.stepTvState, tvOk, "Bağlı", "Bekleniyor")
+    }
+
+    private fun paintStep(iconId: Int, stateId: Int, ok: Boolean, okText: String, waitText: String) {
+        val icon = findViewById<ImageView>(iconId)
+        val state = findViewById<TextView>(stateId)
+        val color = ContextCompat.getColor(this, if (ok) R.color.cx_cyan else R.color.cx_muted)
+        icon.imageTintList = ColorStateList.valueOf(color)
+        state.text = if (ok) "✓ $okText" else waitText
+        state.setTextColor(color)
     }
 
     // ---------------------------------------------------------------- durum
@@ -257,10 +338,11 @@ class CevirixActivity : AppCompatActivity() {
             else -> R.color.cx_yellow
         }
         statusDot.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, dotColor))
-        tvChip.text = if (s.tvClients > 0) "📺 TV bağlı" else "📺 TV bekleniyor"
-        ipChip.text = "📱 ${s.phoneIp}"
-        latencyChip.text = if (s.latencyMs > 0) "⚡ ${s.latencyMs} ms · ${s.engine}" else "⚡ —"
-        lastTr.text = s.lastTr.ifBlank { "Henüz altyazı yok" }
+        tvChip.text = if (s.tvClients > 0) "TV bağlı" else "TV bekleniyor"
+        ipChip.text = "Telefon: ${s.phoneIp}"
+        latencyChip.text = if (s.latencyMs > 0) "%.1f sn · %s".format(java.util.Locale("tr"), s.latencyMs / 1000.0, s.engine) else ""
+        lastTr.text = s.lastTr.ifBlank { "Oyunu açınca altyazılar burada görünür" }
+        renderSteps(s)
         lastEn.text = s.lastEn
         lastEn.visibility = if (s.lastEn.isBlank()) View.GONE else View.VISIBLE
         rawText.text = if (s.frames == 0L && s.copyOk == 0L && s.copyFail == 0L) {
@@ -437,8 +519,11 @@ class CevirixActivity : AppCompatActivity() {
         enSwitch.isChecked = Prefs.tvShowEn
         enSwitch.setOnCheckedChangeListener { _, checked ->
             Prefs.tvShowEn = checked
+            updateTvSample()
             scheduleStylePush()
         }
+
+        updateTvSample()
 
         findViewById<MaterialButton>(R.id.tvPreviewBtn).setOnClickListener {
             if (!CevirixEngine.pushStyle()) toast("Önce PS5'e bağlanın veya ekran okuma modunu başlatın")
@@ -465,8 +550,33 @@ class CevirixActivity : AppCompatActivity() {
             label.text = format(iv)
             if (fromUser) {
                 save(iv)
+                updateTvSample()
                 scheduleStylePush()
             }
+        }
+    }
+
+    /** TV sekmesindeki örnek ekranı ayarlara göre günceller (TV'nin küçültülmüş hali). */
+    private fun updateTvSample() {
+        val box = findViewById<View>(R.id.tvSampleBox) ?: return
+        val group = findViewById<View>(R.id.tvSampleGroup)
+        val sample = findViewById<TextView>(R.id.tvSample)
+        val en = findViewById<TextView>(R.id.tvSampleEn)
+        val bg = android.graphics.drawable.GradientDrawable().apply {
+            cornerRadius = 8f * resources.displayMetrics.density
+            setColor(android.graphics.Color.argb(Prefs.tvBgAlpha.coerceIn(0, 255), 0, 0, 0))
+        }
+        sample.background = bg
+        en.visibility = if (Prefs.tvShowEn) View.VISIBLE else View.GONE
+        box.post {
+            // TV ekranı ~540dp (1080 piksel) yüksekliğinde: aynı oranla küçült
+            val h = box.height.toFloat()
+            if (h <= 0f) return@post
+            sample.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Prefs.tvFontSize * h / 540f)
+            en.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Prefs.tvFontSize * 0.55f * h / 540f)
+            val lp = group.layoutParams as android.widget.FrameLayout.LayoutParams
+            lp.bottomMargin = (Prefs.tvYOffset * h / 1080f).toInt().coerceIn(0, (h * 0.8f).toInt())
+            group.layoutParams = lp
         }
     }
 

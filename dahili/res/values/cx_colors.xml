@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="cx_bg">#0A0D14</color>
-    <color name="cx_surface">#131926</color>
-    <color name="cx_surface2">#1C2436</color>
-    <color name="cx_stroke">#232C40</color>
-    <color name="cx_pink">#FF2E88</color>
+    <!-- Logodan alınan renkler: gece laciverti zemin, camgöbeği "bağlı", pembe→turuncu ana eylem -->
+    <color name="cx_bg">#050C20</color>
+    <color name="cx_surface">#0D1830</color>
+    <color name="cx_surface2">#15233F</color>
+    <color name="cx_stroke">#1F3157</color>
+    <color name="cx_pink">#FF3D9A</color>
     <color name="cx_orange">#FF8A3D</color>
-    <color name="cx_purple">#7B2FF7</color>
-    <color name="cx_cyan">#22D3EE</color>
-    <color name="cx_green">#34D399</color>
-    <color name="cx_yellow">#FBBF24</color>
-    <color name="cx_text">#F5F7FB</color>
-    <color name="cx_muted">#8E9AB3</color>
+    <color name="cx_purple">#8B5CF6</color>
+    <color name="cx_cyan">#3EE0F0</color>
+    <color name="cx_green">#3EE0F0</color>
+    <color name="cx_yellow">#FFC94D</color>
+    <color name="cx_text">#EEF4FF</color>
+    <color name="cx_muted">#8C9CC0</color>
+    <color name="cx_screen">#02050F</color>
     <color name="cx_ic_bg">#040A1A</color>
 </resources>

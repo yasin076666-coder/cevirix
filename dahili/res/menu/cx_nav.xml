@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/navPlay" android:icon="@drawable/cx_i_play" android:title="Oyna" />
+    <item android:id="@+id/navTranslate" android:icon="@drawable/cx_i_translate" android:title="Çeviri" />
+    <item android:id="@+id/navTv" android:icon="@drawable/cx_i_tv" android:title="TV" />
+    <item android:id="@+id/navMore" android:icon="@drawable/cx_i_tune" android:title="Gelişmiş" />
+</menu>
