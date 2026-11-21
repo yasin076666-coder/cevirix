@@ -36,6 +36,10 @@ import kotlin.math.roundToInt
 
 class MainActivity : AppCompatActivity() {
 
+    companion object {
+        private const val REMOTE_PLAY_PACKAGE = "com.playstation.remoteplay"
+    }
+
     private lateinit var statusDot: View
     private lateinit var statusText: TextView
     private lateinit var tvChip: TextView
@@ -64,6 +68,8 @@ class MainActivity : AppCompatActivity() {
                     .putExtra(CaptureService.EXTRA_CODE, res.resultCode)
                     .putExtra(CaptureService.EXTRA_DATA, data)
                 ContextCompat.startForegroundService(this, i)
+                // Servis başlasın, ardından PS Remote Play'i otomatik aç
+                ui.postDelayed({ openRemotePlay() }, 900)
             } else {
                 toast("Ekran izni verilmedi")
             }
@@ -125,6 +131,7 @@ class MainActivity : AppCompatActivity() {
         startBtn.setOnClickListener {
             if (AppState.status.value.running) stopCapture() else startCapture()
         }
+        findViewById<MaterialButton>(R.id.openRpBtn).setOnClickListener { openRemotePlay() }
         findViewById<MaterialButton>(R.id.testBtn).setOnClickListener {
             val s = CaptureService.instance
             if (s == null || !AppState.status.value.running) toast("Önce Başlat'a basın") else s.sendTest()
@@ -142,6 +149,20 @@ class MainActivity : AppCompatActivity() {
             projectionLauncher.launch(mpm.createScreenCaptureIntent())
         } catch (e: Exception) {
             toast("Ekran yakalama başlatılamadı: ${e.message}")
+        }
+    }
+
+    private fun openRemotePlay() {
+        val launch = packageManager.getLaunchIntentForPackage(REMOTE_PLAY_PACKAGE)
+        if (launch == null) {
+            toast("PS Remote Play yüklü değil. Önce onu kurun.")
+            return
+        }
+        try {
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(launch)
+        } catch (e: Exception) {
+            toast("PS Remote Play açılamadı: ${e.message}")
         }
     }
 

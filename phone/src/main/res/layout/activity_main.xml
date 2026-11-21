@@ -130,6 +130,15 @@
                     app:iconGravity="textStart" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/openRpBtn"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="PS Remote Play'e geç"
+                    app:cornerRadius="16dp" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/testBtn"
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="match_parent"

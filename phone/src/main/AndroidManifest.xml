@@ -10,6 +10,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Android 11+ için PS Remote Play'i görebilmek -->
+    <queries>
+        <package android:name="com.playstation.remoteplay" />
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="false"
