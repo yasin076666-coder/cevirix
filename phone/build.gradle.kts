@@ -15,6 +15,11 @@ android {
         targetSdk = 34
         versionCode = buildNo
         versionName = "1.0.$buildNo"
+
+        // Galaxy S8+ ve tüm güncel telefonlar 64-bit ARM: diğer işlemci kütüphaneleri çıkarılır
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     // Sabit imza: yeni sürüm eski sürümün üstüne sorunsuz kurulur
