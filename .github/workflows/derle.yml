@@ -1,0 +1,57 @@
+name: APK Derle
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kaynak kodu hazirla
+        run: |
+          if [ -f kaynak.zip ]; then
+            rm -rf src_build && mkdir src_build
+            unzip -q -o kaynak.zip -d src_build
+          fi
+          DIR=$(dirname "$(find . -name settings.gradle.kts -not -path '*/node_modules/*' | head -1)")
+          echo "PROJE=$DIR" >> "$GITHUB_ENV"
+          echo "Proje klasoru: $DIR"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: APK dosyalarini derle
+        run: gradle -p "$PROJE" assembleRelease -PbuildNo=${{ github.run_number }} --no-daemon --stacktrace
+
+      - name: Dosyalari adlandir
+        run: |
+          mkdir -p cikti
+          cp "$PROJE/phone/build/outputs/apk/release/phone-release.apk" cikti/CevirixTelefon.apk
+          cp "$PROJE/tv/build/outputs/apk/release/tv-release.apk" cikti/CevirixTV.apk
+          ls -la cikti
+
+      - name: Indirme sayfasina koy (Releases)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ github.run_number }}" cikti/CevirixTelefon.apk cikti/CevirixTV.apk \
+            --repo "${{ github.repository }}" \
+            --title "Surum ${{ github.run_number }}" \
+            --notes "CevirixTelefon.apk -> Samsung telefona, CevirixTV.apk -> Philips TV'ye kurulur."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: APK-dosyalari
+          path: cikti/*.apk

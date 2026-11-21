@@ -1,0 +1,96 @@
+ALTYAZI KÖPRÜSÜ – BİLGİSAYARSIZ KURULUM REHBERİ
+(Samsung Galaxy S8+ + Philips Android TV + PS5)
+
+====================================================
+A) APK DOSYALARINI GITHUB'DA DERLEME (bir kez, ~15 dk)
+====================================================
+1. Telefonda Chrome ile github.com'a girin, ücretsiz hesap açın.
+2. Sağ üstteki "+" > "New repository".
+   - Ad: altyazi
+   - "Private" seçin
+   - "Create repository"
+3. Açılan sayfada "uploading an existing file" bağlantısına basın.
+   - kaynak.zip dosyasını seçin (zip'i AÇMAYIN, olduğu gibi yükleyin)
+   - En alttaki yeşil "Commit changes" düğmesine basın.
+4. Depo sayfasında "Add file" > "Create new file".
+   - Dosya adı kutusuna tam olarak şunu yazın:
+     .github/workflows/derle.yml
+   - Alttaki büyük kutuya derle.yml dosyasının TÜM içeriğini yapıştırın
+     (derle.yml'i telefonda bir metin uygulamasıyla açıp "Tümünü seç > Kopyala").
+   - "Commit changes" > tekrar "Commit changes".
+5. Üstteki "Actions" sekmesine girin. "APK Derle" çalışmaya başlar.
+   Sarı = derleniyor, yeşil tik = bitti (5-10 dk). Kırmızı çarpı çıkarsa
+   ona basıp hata ekranının görüntüsünü bana gönderin, düzeltirim.
+6. Depo ana sayfasında sağda "Releases" > en üstteki sürüm.
+   İki dosyayı da indirin:
+   - CevirixTelefon.apk  -> bu telefon için
+   - CevirixTV.apk       -> Philips TV için
+
+====================================================
+B) TELEFONA KURULUM (Samsung S8+)
+====================================================
+1. İndirilenler'den CevirixTelefon.apk'ya dokunun.
+2. "Bilinmeyen uygulamalar" uyarısı çıkarsa Ayarlar'dan Chrome'a/Dosyalarım'a izin verip kurun.
+3. Uygulamayı açın:
+   - "Ücretsiz anahtar al" düğmesine basın, Google hesabınızla girip
+     "Create API key" deyin, anahtarı kopyalayıp uygulamaya yapıştırın.
+   - "Anahtarı test et": ✓ ve Türkçe bir cümle görmelisiniz.
+   - "Çevrimdışı Türkçe paketi" yanında "İndir" varsa basın
+     (internet giderse yedek olarak kullanılır).
+
+====================================================
+C) TV'YE KURULUM (Philips Android TV) – telefonla, kablosuz
+====================================================
+1. TV'de: Ayarlar > Cihaz Tercihleri > Hakkında > "Derleme" satırına 7 kez basın
+   ("Artık geliştiricisiniz" yazar).
+2. Ayarlar > Cihaz Tercihleri > Geliştirici seçenekleri:
+   "USB hata ayıklama" AÇIK (varsa "Ağ üzerinden hata ayıklama" da AÇIK).
+3. TV'nin IP adresini not edin: Ayarlar > Ağ ve İnternet > bağlı ağ (ör. 192.168.1.40).
+4. Telefona Play Store'dan "Bugjaeger" (ADB) uygulamasını kurun.
+   - Uygulamada ağ/kablosuz bağlantı simgesine basın, TV IP'sini yazın, port 5555.
+   - TV ekranında "Hata ayıklamaya izin verilsin mi?" çıkar:
+     "Her zaman izin ver" işaretleyip TAMAM.
+   - Bugjaeger'de "APK yükle / Install" ile CevirixTV.apk'yı seçin.
+   - "Shell" (komut) bölümüne şunu yazıp çalıştırın:
+     appops set com.bugra.altyazi.tv SYSTEM_ALERT_WINDOW allow
+   (Bu komut, altyazının oyun görüntüsünün üstünde görünme iznidir.)
+5. TV'de "Çevirix TV" uygulamasını açın.
+   "Ekran üstü izni: VAR ✓" görmelisiniz. "Test yazısı"na basın:
+   alt kısımda altyazı kutusu çıkıyorsa TV tarafı hazır.
+   IP kutusunu BOŞ bırakın (telefonu kendisi bulur).
+
+====================================================
+D) PS5 VE REMOTE PLAY AYARI (bir kez)
+====================================================
+1. PS5'te ikinci (ücretsiz) bir PSN hesabı açıp konsola ekleyin.
+2. O hesapla: Ayarlar > Sistem > Uzaktan Oynama > "Uzaktan Oynamayı Etkinleştir" AÇIK.
+3. Telefona Play Store'dan "PS Remote Play" kurun, İKİNCİ hesapla girin, PS5'e bağlanın.
+4. PS Remote Play ayarlarında video kalitesini 720p (veya en yüksek) yapın.
+   Ekrandaki dokunmatik kumanda tuşlarını gizleyin (ekrana dokununca gizlenir),
+   mikrofonu kapatın.
+5. Oyunda (GTA 6) İngilizce altyazıları açın.
+
+====================================================
+E) HER OYUNDA KULLANIM
+====================================================
+1. TV'de "Çevirix TV"yi açın (açılınca kendiliğinden başlar), sonra PS5 HDMI'ına geçin.
+2. Telefonda Çevirix > "Başlat" > ekran paylaşım izninde "Şimdi başlat".
+3. PS Remote Play'e geçin, telefonu yatay tutup kenara koyun (şarja takılı olsun).
+4. TV'de ana hesabınızla oynayın; Türkçe altyazı oyunun üstünde çıkar.
+
+İlk sefer ayarı: Telefon uygulamasındaki "Altyazı okuma bölgesi" önizlemesine bakın.
+Altyazı yazısı kutunun içinde değilse kaydırıcıyla şeridi ayarlayın.
+
+====================================================
+SORUN ÇÖZME
+====================================================
+- TV "Telefon aranıyor" diyor: Telefonda Başlat'a bastınız mı? İkisi aynı Wi-Fi'de mi?
+  Olmazsa telefon uygulamasında yazan IP'yi (📱 192.168...) TV'deki kutuya yazın.
+- Telefonda "Görüntü tamamen siyah" uyarısı: PS Remote Play ekran yakalamayı engelliyor
+  demektir. Bana yazın, chiaki-ng uygulamasıyla çalışacak şekilde ayarlarız.
+- Çeviri kitap dili gibi: Gemini anahtarı girili ve "Gemini ile sokak dili" açık mı?
+  "Anahtarı test et" ✓ veriyor mu? Daha kaliteli çeviri için "3.6 Flash" modelini seçin.
+- Dublaj sesi gelmiyor: Telefonun Ayarlar > Genel yönetim > Metin okuma bölümünden
+  Türkçe ses paketini indirin. Remote Play'in oyun sesini susturmak için
+  "Bildirim sesi" seçiliyken medya sesini kısın.
+- Yeni sürüm kurarken eskisini silmenize gerek yok, üstüne kurulur.
