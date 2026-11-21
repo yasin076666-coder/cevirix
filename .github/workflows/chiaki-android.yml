@@ -1,0 +1,55 @@
+name: Dahili Remote Play (chiaki-ng) deneme derlemesi
+
+on:
+  push:
+    paths:
+      - ".github/workflows/chiaki-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: chiaki-ng kaynak kodunu indir
+        run: git clone --recursive --depth 1 https://github.com/streetpea/chiaki-ng.git
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Araclar (NDK, CMake, Python protobuf)
+        run: |
+          python3 -m pip install --user protobuf grpcio-tools || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.22.1" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Android uygulamasini derle
+        working-directory: chiaki-ng/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: APK'yi bul
+        run: |
+          mkdir -p cikti
+          find chiaki-ng/android -name "*.apk" -path "*outputs*" -exec ls -la {} \;
+          cp "$(find chiaki-ng/android -name '*arm64*debug*.apk' -path '*outputs*' | head -1 || true)" cikti/RemotePlayDeneme.apk 2>/dev/null || cp "$(find chiaki-ng/android -name '*.apk' -path '*outputs*' | head -1)" cikti/RemotePlayDeneme.apk
+          ls -la cikti
+
+      - name: On surum olarak yayinla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "remote-${{ github.run_number }}" cikti/RemotePlayDeneme.apk \
+            --repo "${{ github.repository }}" --prerelease \
+            --title "Remote Play deneme ${{ github.run_number }}" \
+            --notes "chiaki-ng Android deneme derlemesi (Cevirix'e entegrasyon oncesi test)."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RemotePlayDeneme
+          path: cikti/*.apk

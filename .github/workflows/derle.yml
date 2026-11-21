@@ -2,6 +2,8 @@ name: APK Derle
 
 on:
   push:
+    paths-ignore:
+      - ".github/workflows/chiaki-android.yml"
   workflow_dispatch:
 
 permissions:
