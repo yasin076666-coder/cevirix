@@ -23,6 +23,7 @@ jobs:
 
       - name: Araclar (NDK, CMake, Python protobuf)
         run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
           python3 -m pip install --user protobuf grpcio-tools || true
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.22.1" "platforms;android-35" "build-tools;35.0.0"
