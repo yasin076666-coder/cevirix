@@ -151,7 +151,7 @@ s = replace_once(
     "        <activity\n"
     '            android:name="com.bugra.altyazi.phone.CevirixActivity"\n'
     '            android:exported="true"\n'
-    '            android:launchMode="singleTask"\n'
+    '            android:launchMode="singleTop"\n'
     '            android:screenOrientation="portrait"\n'
     '            android:theme="@style/CxTema"\n'
     '            android:windowSoftInputMode="adjustResize">\n'

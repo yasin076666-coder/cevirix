@@ -114,12 +114,15 @@ class CevirixActivity : AppCompatActivity() {
         setupTv()
         setupNav()
         setupSteps()
+        setupLive()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { AppState.status.collect { render(it) } }
                 launch { AppState.preview.collect { bmp -> if (bmp != null) previewImage.setImageBitmap(bmp) } }
                 launch { OfflineTranslator.state.collect { renderOffline(it) } }
+                launch { AppState.liveFrame.collect { renderLive(it) } }
+                launch { AppState.streaming.collect { renderStreaming(it) } }
             }
         }
 
@@ -174,6 +177,10 @@ class CevirixActivity : AppCompatActivity() {
             startActivity(Intent(this, PsnLoginActivity::class.java))
         }
         findViewById<MaterialButton>(R.id.ps5Btn).setOnClickListener {
+            if (StreamCapture.current != null) {
+                openFullScreen()
+                return@setOnClickListener
+            }
             if (CaptureService.instance != null) stopCapture()
             try {
                 App.markPs5Opening(this)
@@ -341,10 +348,11 @@ class CevirixActivity : AppCompatActivity() {
         tvChip.text = if (s.tvClients > 0) "TV bağlı" else "TV bekleniyor"
         ipChip.text = "Telefon: ${s.phoneIp}"
         latencyChip.text = if (s.latencyMs > 0) "%.1f sn · %s".format(java.util.Locale("tr"), s.latencyMs / 1000.0, s.engine) else ""
-        lastTr.text = s.lastTr.ifBlank { "Oyunu açınca altyazılar burada görünür" }
+        lastTr.text = s.lastTr
+        lastTr.visibility = if (s.lastTr.isBlank()) View.GONE else View.VISIBLE
         renderSteps(s)
         lastEn.text = s.lastEn
-        lastEn.visibility = if (s.lastEn.isBlank()) View.GONE else View.VISIBLE
+        lastEn.visibility = if (s.lastEn.isBlank() || !Prefs.tvShowEn || s.lastTr.isBlank()) View.GONE else View.VISIBLE
         rawText.text = if (s.frames == 0L && s.copyOk == 0L && s.copyFail == 0L) {
             "Teşhis: henüz okuma yapılmadı (PS5'e bağlanıp oyunu açın)"
         } else {
@@ -556,27 +564,113 @@ class CevirixActivity : AppCompatActivity() {
         }
     }
 
-    /** TV sekmesindeki örnek ekranı ayarlara göre günceller (TV'nin küçültülmüş hali). */
+    /** TV sekmesindeki örnek ekranı ve ana ekrandaki canlı pencereyi ayarlara göre günceller. */
     private fun updateTvSample() {
-        val box = findViewById<View>(R.id.tvSampleBox) ?: return
-        val group = findViewById<View>(R.id.tvSampleGroup)
-        val sample = findViewById<TextView>(R.id.tvSample)
-        val en = findViewById<TextView>(R.id.tvSampleEn)
+        styleSubtitle(
+            findViewById(R.id.tvSampleBox), findViewById(R.id.tvSampleGroup),
+            findViewById(R.id.tvSample), findViewById(R.id.tvSampleEn), alwaysShowEn = false
+        )
+        styleSubtitle(findViewById(R.id.liveBox), findViewById(R.id.liveSubGroup), lastTr, lastEn, alwaysShowEn = null)
+    }
+
+    /**
+     * Altyazıyı TV'deki oranlarla küçültüp kutuya yerleştirir.
+     * TV ekranı ~540dp (1080 piksel) yüksekliğinde kabul edilir.
+     */
+    private fun styleSubtitle(box: View, group: View, tr: TextView, en: TextView, alwaysShowEn: Boolean?) {
         val bg = android.graphics.drawable.GradientDrawable().apply {
-            cornerRadius = 8f * resources.displayMetrics.density
+            cornerRadius = 6f * resources.displayMetrics.density
             setColor(android.graphics.Color.argb(Prefs.tvBgAlpha.coerceIn(0, 255), 0, 0, 0))
         }
-        sample.background = bg
-        en.visibility = if (Prefs.tvShowEn) View.VISIBLE else View.GONE
+        tr.background = bg
+        if (alwaysShowEn != null) en.visibility = if (Prefs.tvShowEn) View.VISIBLE else View.GONE
         box.post {
-            // TV ekranı ~540dp (1080 piksel) yüksekliğinde: aynı oranla küçült
-            val h = box.height.toFloat()
+            // Kutuyu 16:9 yap (TV gibi)
+            val w = box.width
+            if (w > 0) {
+                val want = w * 9 / 16
+                val blp = box.layoutParams
+                if (blp.height != want) {
+                    blp.height = want
+                    box.layoutParams = blp
+                }
+            }
+            val h = (if (w > 0) w * 9 / 16 else box.height).toFloat()
             if (h <= 0f) return@post
-            sample.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Prefs.tvFontSize * h / 540f)
+            tr.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Prefs.tvFontSize * h / 540f)
             en.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, Prefs.tvFontSize * 0.55f * h / 540f)
             val lp = group.layoutParams as android.widget.FrameLayout.LayoutParams
             lp.bottomMargin = (Prefs.tvYOffset * h / 1080f).toInt().coerceIn(0, (h * 0.8f).toInt())
             group.layoutParams = lp
+        }
+    }
+
+    // ---------------------------------------------------------------- canlı pencere
+
+    private lateinit var liveFrameView: ImageView
+    private lateinit var liveHint: TextView
+
+    private fun setupLive() {
+        val box = findViewById<View>(R.id.liveBox)
+        box.clipToOutline = true
+        liveFrameView = findViewById(R.id.liveFrame)
+        liveHint = findViewById(R.id.liveHint)
+        box.setOnClickListener {
+            if (StreamCapture.current != null) openFullScreen()
+            else findViewById<MaterialButton>(R.id.ps5Btn).performClick()
+        }
+        findViewById<MaterialButton>(R.id.stopStreamBtn).setOnClickListener {
+            StreamCapture.current?.finishStream()
+        }
+        findViewById<MaterialButton>(R.id.fontDownBtn).setOnClickListener { nudgeFont(-2) }
+        findViewById<MaterialButton>(R.id.fontUpBtn).setOnClickListener { nudgeFont(+2) }
+        findViewById<MaterialButton>(R.id.posDownBtn).setOnClickListener { nudgeY(-10) }
+        findViewById<MaterialButton>(R.id.posUpBtn).setOnClickListener { nudgeY(+10) }
+        updateTvSample()
+    }
+
+    private fun nudgeFont(d: Int) {
+        val v = (Prefs.tvFontSize + d).coerceIn(18, 48)
+        Prefs.tvFontSize = v
+        findViewById<Slider>(R.id.fontSlider).value = snap(v, 18, 48, 2).toFloat()
+        updateTvSample()
+        scheduleStylePush()
+    }
+
+    private fun nudgeY(d: Int) {
+        val v = (Prefs.tvYOffset + d).coerceIn(10, 250)
+        Prefs.tvYOffset = v
+        findViewById<Slider>(R.id.ySlider).value = snap(v, 10, 250, 5).toFloat()
+        updateTvSample()
+        scheduleStylePush()
+    }
+
+    private fun renderLive(bmp: android.graphics.Bitmap?) {
+        if (!::liveFrameView.isInitialized) return
+        liveFrameView.setImageBitmap(bmp)
+        liveHint.visibility = if (bmp == null) View.VISIBLE else View.GONE
+    }
+
+    private fun renderStreaming(on: Boolean) {
+        val btn = findViewById<MaterialButton>(R.id.ps5Btn)
+        btn.text = if (on) "Tam ekrana geç" else "Oyna"
+        findViewById<TextView>(R.id.playHint).text = if (on)
+            "Oyun açık. Telefonda kumanda kullanacaksan tam ekrana geç."
+        else
+            "PS5'e bağlanır, altyazıyı okuyup TV'ye Türkçe gönderir."
+        findViewById<View>(R.id.stopStreamBtn).visibility = if (on) View.VISIBLE else View.GONE
+        if (!on) liveHint.text = "Oyna'ya bas. Oyun görüntüsü burada, TV'deki gibi görünecek."
+        else if (AppState.liveFrame.value == null) liveHint.text = "Oyun ekranı açık. Küçük pencereye almak için oradaki üst kutuya dokun."
+    }
+
+    private fun openFullScreen() {
+        try {
+            startActivity(
+                Intent(this, com.metallic.chiaki.stream.StreamActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            )
+        } catch (e: Exception) {
+            toast("Oyun ekranı açılamadı")
         }
     }
 

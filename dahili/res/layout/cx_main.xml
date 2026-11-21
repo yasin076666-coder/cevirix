@@ -82,62 +82,161 @@
                     android:paddingEnd="16dp"
                     android:paddingBottom="28dp">
 
-                    <!-- Canlı TV önizlemesi -->
+                    <!-- Canlı pencere: oyun görüntüsü + TV'deki altyazı -->
                     <FrameLayout
+                        android:id="@+id/liveBox"
                         android:layout_width="match_parent"
-                        android:layout_height="172dp"
+                        android:layout_height="190dp"
                         android:background="@drawable/cx_tv_screen"
-                        android:padding="14dp">
+                        android:clickable="true"
+                        android:focusable="true">
+
+                        <ImageView
+                            android:id="@+id/liveFrame"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:contentDescription="Oyun görüntüsü"
+                            android:scaleType="fitXY" />
+
+                        <TextView
+                            android:id="@+id/liveHint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_marginStart="24dp"
+                            android:layout_marginEnd="24dp"
+                            android:layout_marginBottom="28dp"
+                            android:gravity="center"
+                            android:text="Oyna'ya bas. Oyun görüntüsü burada, TV'deki gibi görünecek."
+                            android:textColor="@color/cx_muted"
+                            android:textSize="13sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="top|start"
+                            android:layout_margin="8dp"
+                            android:background="@drawable/cx_sub_bg"
+                            android:paddingStart="8dp"
+                            android:paddingTop="3dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="3dp"
                             android:text="TV'de şu an"
-                            android:textColor="@color/cx_muted"
-                            android:textSize="12sp" />
+                            android:textColor="#FFFFFF"
+                            android:textSize="11sp" />
 
                         <TextView
                             android:id="@+id/latencyChip"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_gravity="top|end"
+                            android:layout_margin="8dp"
+                            android:background="@drawable/cx_sub_bg"
+                            android:paddingStart="8dp"
+                            android:paddingTop="3dp"
+                            android:paddingEnd="8dp"
+                            android:paddingBottom="3dp"
                             android:textColor="@color/cx_cyan"
-                            android:textSize="12sp" />
+                            android:textSize="11sp" />
 
                         <LinearLayout
+                            android:id="@+id/liveSubGroup"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_gravity="bottom"
                             android:gravity="center_horizontal"
-                            android:orientation="vertical">
+                            android:orientation="vertical"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp">
 
                             <TextView
                                 android:id="@+id/lastTr"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:background="@drawable/cx_sub_bg"
-                                android:fontFamily="sans-serif-medium"
                                 android:gravity="center"
                                 android:maxLines="3"
-                                android:paddingStart="12dp"
-                                android:paddingTop="6dp"
-                                android:paddingEnd="12dp"
-                                android:paddingBottom="7dp"
-                                android:textColor="#FFFFFF"
-                                android:textSize="18sp" />
+                                android:paddingStart="8dp"
+                                android:paddingTop="3dp"
+                                android:paddingEnd="8dp"
+                                android:paddingBottom="4dp"
+                                android:textColor="#FFFFFF" />
 
                             <TextView
                                 android:id="@+id/lastEn"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="5dp"
+                                android:layout_marginTop="2dp"
                                 android:gravity="center"
                                 android:maxLines="2"
-                                android:textColor="@color/cx_muted"
-                                android:textSize="12sp" />
+                                android:textColor="#C8D2E8" />
                         </LinearLayout>
                     </FrameLayout>
+
+                    <!-- Canlı ayar: yazı boyutu ve yeri (TV'de anında değişir) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:text="Yazı"
+                            android:textColor="@color/cx_muted"
+                            android:textSize="13sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/fontDownBtn"
+                            style="@style/CxMiniDugme"
+                            android:layout_width="48dp"
+                            android:layout_height="44dp"
+                            android:contentDescription="Yazıyı küçült"
+                            android:text="A−"
+                            android:textSize="13sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/fontUpBtn"
+                            style="@style/CxMiniDugme"
+                            android:layout_width="48dp"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="6dp"
+                            android:contentDescription="Yazıyı büyüt"
+                            android:text="A+"
+                            android:textSize="16sp" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="1dp"
+                            android:layout_weight="1" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:text="Yer"
+                            android:textColor="@color/cx_muted"
+                            android:textSize="13sp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/posDownBtn"
+                            style="@style/CxMiniDugme"
+                            android:layout_width="48dp"
+                            android:layout_height="44dp"
+                            android:contentDescription="Altyazıyı aşağı al"
+                            android:text="▼" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/posUpBtn"
+                            style="@style/CxMiniDugme"
+                            android:layout_width="48dp"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="6dp"
+                            android:contentDescription="Altyazıyı yukarı al"
+                            android:text="▲" />
+                    </LinearLayout>
 
                     <!-- Bağlantı adımları: hesap → PS5 → TV -->
                     <LinearLayout
@@ -254,6 +353,7 @@
                         app:iconTint="#FFFFFF" />
 
                     <TextView
+                        android:id="@+id/playHint"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
@@ -261,6 +361,15 @@
                         android:text="PS5'e bağlanır, altyazıyı okuyup TV'ye Türkçe gönderir."
                         android:textColor="@color/cx_muted"
                         android:textSize="13sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/stopStreamBtn"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="Bağlantıyı kapat"
+                        android:textColor="@color/cx_pink"
+                        android:visibility="gone" />
 
                     <!-- Hızlı ayarlar -->
                     <com.google.android.material.card.MaterialCardView

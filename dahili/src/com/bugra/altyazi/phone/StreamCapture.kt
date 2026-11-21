@@ -31,7 +31,19 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         private const val INTERVAL_MS = 200L
         private const val BG_W = 1280
         private const val BG_H = 720
+        private const val BG_INTERVAL_MS = 140L
+        private const val LIVE_W = 640
+        private const val LIVE_H = 360
+
+        /** Açık olan akış (ana ekrandan tam ekrana geçmek/kapatmak için). */
+        @Volatile var current: StreamCapture? = null
+            private set
     }
+
+    private var autoMinimized = false
+    private val liveBufs = arrayOfNulls<Bitmap>(3)
+    private var liveIdx = 0
+    private val livePaint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
 
     private val tickThread = HandlerThread("cevirix-tick").apply { start() }
     private val tickHandler = Handler(tickThread.looper)
@@ -55,7 +67,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         override fun run() {
             if (!running) return
             capture()
-            tickHandler.postDelayed(this, INTERVAL_MS)
+            tickHandler.postDelayed(this, if (BgFrames.inUse) BG_INTERVAL_MS else INTERVAL_MS)
         }
     }
 
@@ -90,6 +102,8 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         AppState.update {
             it.copy(frames = 0, ocrRuns = 0, copyOk = 0, copyFail = 0, copyErr = 0, rawText = "", source = "Dahili Remote Play")
         }
+        current = this
+        AppState.streaming.value = true
         addHud()
         BgService.onStopRequested = { ui.post { try { activity.finish() } catch (e: Exception) { } } }
         // Arka plan için görünmez yüzeyi önceden hazırla
@@ -122,8 +136,27 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         BgService.stop(activity)
     }
 
+    /** Oyunu Çevirix ana ekranındaki küçük pencereye al. */
+    fun minimize() {
+        ui.post {
+            try {
+                activity.startActivity(
+                    Intent(activity, CevirixActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                )
+            } catch (e: Exception) { }
+        }
+    }
+
+    /** Bağlantıyı kapat. */
+    fun finishStream() {
+        ui.post { try { activity.finish() } catch (e: Exception) { } }
+    }
+
     fun stop() {
         running = false
+        if (current === this) current = null
+        AppState.streaming.value = false
+        AppState.liveFrame.value = null
         BgFrames.keepAliveWanted = false
         BgService.onStopRequested = null
         BgService.stop(activity)
@@ -191,12 +224,24 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         try {
             val full = obtainFull(BG_W, BG_H)
             if (!BgFrames.grab(full)) return // henüz kare yok
+            publishLive(full)
             val crop = cropSubtitle(full)
             onCopied(if (crop != null) PixelCopy.SUCCESS else -3, crop)
         } catch (e: Throwable) {
             copyFail++
             lastErr = -4
         }
+    }
+
+    /** Küçük pencere için kareyi küçültüp yayınla (üçlü tampon: gösterilen kare ezilmesin). */
+    private fun publishLive(full: Bitmap) {
+        try {
+            liveIdx = (liveIdx + 1) % liveBufs.size
+            val b = liveBufs[liveIdx] ?: Bitmap.createBitmap(LIVE_W, LIVE_H, Bitmap.Config.ARGB_8888).also { liveBufs[liveIdx] = it }
+            val c = android.graphics.Canvas(b)
+            c.drawBitmap(full, null, Rect(0, 0, LIVE_W, LIVE_H), livePaint)
+            AppState.liveFrame.value = b
+        } catch (e: Throwable) { }
     }
 
     private var fullBmp: Bitmap? = null
@@ -225,6 +270,13 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         inFlight = false
         if (result == PixelCopy.SUCCESS && bmp != null) {
             copyOk++
+            // Görüntü geldi: oyunu ana ekrandaki küçük pencereye al (oturum başına bir kez)
+            if (!autoMinimized && !BgFrames.inUse && copyOk >= 10 &&
+                Prefs.miniView && Prefs.backgroundStream && BgFrames.isReady
+            ) {
+                autoMinimized = true
+                minimize()
+            }
             if (running) ocr?.submit(bmp)
         } else {
             copyFail++
@@ -249,13 +301,14 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
                     orientation = android.widget.LinearLayout.VERTICAL
                     setBackgroundColor(Color.argb(150, 0, 0, 0))
                     setPadding(12, 6, 12, 6)
-                    isClickable = false
+                    isClickable = true
                     isFocusable = false
+                    setOnClickListener { minimize() }
                 }
                 val tv = TextView(activity).apply {
                     setTextColor(Color.WHITE)
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                    maxLines = 3
+                    maxLines = 4
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }
                 val img = android.widget.ImageView(activity).apply {
@@ -292,6 +345,6 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             hudImage?.setImageBitmap(pv)
         }
         tv.text = "Çevirix · $tvState · kopya ${s.copyOk}$errText · okuma ${s.ocrRuns}\n" +
-            "EN: ${raw.ifBlank { "—" }}\nTR: ${tr.ifBlank { "—" }}"
+            "EN: ${raw.ifBlank { "—" }}\nTR: ${tr.ifBlank { "—" }}\nKüçük pencereye almak için dokun"
     }
 }

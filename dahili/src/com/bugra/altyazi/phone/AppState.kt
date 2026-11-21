@@ -28,6 +28,12 @@ object AppState {
     val status = MutableStateFlow(Status())
     val preview = MutableStateFlow<Bitmap?>(null)
 
+    /** Arka planda akan oyun görüntüsü (ana ekrandaki küçük pencere için). */
+    val liveFrame = MutableStateFlow<Bitmap?>(null)
+
+    /** PS5 bağlantısı açık mı? */
+    val streaming = MutableStateFlow(false)
+
     fun update(block: (Status) -> Status) {
         status.update(block)
     }

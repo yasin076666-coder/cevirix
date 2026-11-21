@@ -82,6 +82,11 @@ object Prefs {
         get() = sp.getBoolean("background_stream", true)
         set(v) = sp.edit().putBoolean("background_stream", v).apply()
 
+    /** Bağlanınca oyunu ana ekrandaki küçük pencereye al. */
+    var miniView: Boolean
+        get() = sp.getBoolean("mini_view", true)
+        set(v) = sp.edit().putBoolean("mini_view", v).apply()
+
     var tvShowEn: Boolean
         get() = sp.getBoolean("tv_en", false)
         set(v) = sp.edit().putBoolean("tv_en", v).apply()
