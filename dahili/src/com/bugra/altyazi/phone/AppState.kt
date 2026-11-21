@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.update
 object AppState {
     data class Status(
         val running: Boolean = false,
-        val message: String = "Hazır. Başlat'a basın.",
+        val message: String = "Hazır. PS5'e bağlanıp oyunu açın.",
         val tvClients: Int = 0,
         val phoneIp: String = "-",
         val lastEn: String = "",
@@ -18,7 +18,11 @@ object AppState {
         val lineCount: Int = 0,
         val frames: Long = 0,
         val ocrRuns: Long = 0,
-        val rawText: String = ""
+        val rawText: String = "",
+        val source: String = "",
+        val copyOk: Long = 0,
+        val copyFail: Long = 0,
+        val copyErr: Int = 0
     )
 
     val status = MutableStateFlow(Status())

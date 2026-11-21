@@ -15,7 +15,7 @@ class FrameAnalyzer(
         private const val FRAME_INTERVAL_MS = 200L
     }
 
-    private val ocr = SubtitleOcr(onText, onCleared, onNotice)
+    private val ocr = SubtitleOcr("Ekran okuma", onText, onCleared, onNotice)
     @Volatile private var closed = false
     private var lastFrameAt = 0L
     private var portraitNoticeAt = 0L
@@ -67,8 +67,8 @@ class FrameAnalyzer(
 
         val full = obtainBitmap(paddedW, rows)
         full.copyPixelsFromBuffer(buffer)
-        val left = (w * 0.04f).toInt()
-        val right = max(left + 16, (w * 0.96f).toInt()).coerceAtMost(w)
+        val left = (w * Roi.LEFT).toInt()
+        val right = max(left + 16, (w * Roi.RIGHT).toInt()).coerceAtMost(w)
         val crop = Bitmap.createBitmap(full, left, 0, right - left, rows)
         ocr.submit(crop)
     }

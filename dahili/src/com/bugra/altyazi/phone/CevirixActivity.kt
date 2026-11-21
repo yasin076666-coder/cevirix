@@ -101,6 +101,10 @@ class CevirixActivity : AppCompatActivity() {
 
         setupPs5()
         setupStatus()
+        // Sade ekran: eski "ekran okuma" ve "PS Remote Play'e geç" kaldırıldı
+        startBtn.visibility = View.GONE
+        findViewById<MaterialButton>(R.id.openRpBtn).visibility = View.GONE
+        if (CaptureService.instance != null) stopCapture()
         setupTranslation()
         setupDubbing()
         setupRoi()
@@ -253,10 +257,12 @@ class CevirixActivity : AppCompatActivity() {
         lastTr.text = s.lastTr.ifBlank { "Henüz altyazı yok" }
         lastEn.text = s.lastEn
         lastEn.visibility = if (s.lastEn.isBlank()) View.GONE else View.VISIBLE
-        rawText.text = if (!s.running) {
-            "Teşhis: çalışmıyor"
+        rawText.text = if (s.frames == 0L && s.copyOk == 0L && s.copyFail == 0L) {
+            "Teşhis: henüz okuma yapılmadı (PS5'e bağlanıp oyunu açın)"
         } else {
-            "Teşhis: ${s.frames} kare yakalandı · ${s.ocrRuns} kez okundu\nSon okunan yazı: " +
+            val copy = if (s.copyOk + s.copyFail > 0) " · görüntü kopyalama: ${s.copyOk} başarılı, ${s.copyFail} hata" +
+                (if (s.copyFail > 0) " (kod ${s.copyErr})" else "") else ""
+            "Teşhis (${s.source.ifBlank { "-" }}): ${s.frames} kare · ${s.ocrRuns} kez okundu$copy\nSon okunan yazı: " +
                 s.rawText.ifBlank { "(henüz yazı bulunamadı)" }
         }
 

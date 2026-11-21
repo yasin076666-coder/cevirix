@@ -17,6 +17,7 @@ import kotlin.math.min
  * Hem dahili Remote Play (PixelCopy) hem ekran okuma (MediaProjection) bunu kullanır.
  */
 class SubtitleOcr(
+    private val source: String,
     private val onText: (String) -> Unit,
     private val onCleared: () -> Unit,
     private val onNotice: (String) -> Unit
@@ -66,7 +67,7 @@ class SubtitleOcr(
         frameCount++
         if (frameCount % 5 == 0L) {
             val fc = frameCount
-            AppState.update { it.copy(frames = fc) }
+            AppState.update { it.copy(frames = fc, source = source) }
         }
 
         val small = Bitmap.createScaledBitmap(crop, SIG_W, SIG_H, true)
