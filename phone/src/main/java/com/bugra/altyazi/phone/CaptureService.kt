@@ -45,7 +45,7 @@ class CaptureService : Service() {
         const val EXTRA_DATA = "data"
         private const val NOTIF_ID = 42
         private const val CHANNEL = "altyazi_kanal"
-        private const val MAX_SIDE = 1280
+        private const val MAX_SIDE = 3200 // tam çözünürlük: küçük altyazılar da okunsun
 
         @Volatile
         var instance: CaptureService? = null
@@ -176,7 +176,7 @@ class CaptureService : Service() {
 
     private fun createCapture() {
         val size = captureSize()
-        val r = ImageReader.newInstance(size.w, size.h, PixelFormat.RGBA_8888, 3)
+        val r = ImageReader.newInstance(size.w, size.h, PixelFormat.RGBA_8888, 2)
         r.setOnImageAvailableListener(imageListener, handler)
         reader = r
         capW = size.w
@@ -196,7 +196,7 @@ class CaptureService : Service() {
             val size = captureSize()
             if (size.w == capW && size.h == capH) return
             val old = reader
-            val r = ImageReader.newInstance(size.w, size.h, PixelFormat.RGBA_8888, 3)
+            val r = ImageReader.newInstance(size.w, size.h, PixelFormat.RGBA_8888, 2)
             r.setOnImageAvailableListener(imageListener, handler)
             vd.resize(size.w, size.h, size.dpi)
             vd.surface = r.surface

@@ -143,8 +143,17 @@ class FrameAnalyzer(
         if (!needOcr || !busy.compareAndSet(false, true)) return
         lastOcrAt = now
 
+        // Küçük yazılar için büyüterek oku (OCR harf boyu ~20 pikselin altında zorlanır)
+        val ocrBitmap = try {
+            if (crop.width < 1800) {
+                Bitmap.createScaledBitmap(crop, crop.width * 2, crop.height * 2, true)
+            } else crop
+        } catch (e: OutOfMemoryError) {
+            crop
+        }
+
         try {
-            recognizer.process(InputImage.fromBitmap(crop, 0))
+            recognizer.process(InputImage.fromBitmap(ocrBitmap, 0))
                 .addOnSuccessListener(ocrExecutor) { result -> if (!closed) handleText(result, crop) }
                 .addOnCompleteListener(ocrExecutor) { busy.set(false) }
         } catch (e: Exception) {
