@@ -4,6 +4,8 @@ on:
   push:
     paths-ignore:
       - ".github/workflows/chiaki-android.yml"
+      - ".github/workflows/cevirix-dahili.yml"
+      - "dahili/**"
   workflow_dispatch:
 
 permissions:

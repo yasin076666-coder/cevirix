@@ -1,0 +1,66 @@
+name: Cevirix (dahili Remote Play) derle
+
+on:
+  push:
+    paths:
+      - "dahili/**"
+      - ".github/workflows/cevirix-dahili.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CHIAKI_SHA: 43728af2e639fecb8a7af1cd68c29820a40de973
+
+jobs:
+  derle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: chiaki-ng kaynak kodunu indir (sabit surum)
+        run: |
+          mkdir chiaki-ng && cd chiaki-ng
+          git init -q
+          git remote add origin https://github.com/streetpea/chiaki-ng.git
+          git fetch -q --depth 1 origin "$CHIAKI_SHA"
+          git checkout -q FETCH_HEAD
+          git submodule update --init --recursive --depth 1
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Araclar (NDK, CMake, protoc)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq protobuf-compiler
+          python3 -m pip install --user protobuf grpcio-tools || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" "cmake;3.22.1" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Cevirix'i chiaki-ng'ye ekle
+        run: python3 dahili/hazirla.py chiaki-ng .
+
+      - name: Derle
+        working-directory: chiaki-ng/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease -PbuildNo=${{ github.run_number }} --no-daemon --stacktrace
+
+      - name: APK
+        run: |
+          mkdir -p cikti
+          find chiaki-ng/android/app/build/outputs -name "*.apk" -exec ls -la {} \;
+          cp "$(find chiaki-ng/android/app/build/outputs -name '*release*.apk' | head -1)" cikti/Cevirix.apk
+          ls -la cikti
+
+      - name: Yayinla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "cevirix-${{ github.run_number }}" cikti/Cevirix.apk \
+            --repo "${{ github.repository }}" \
+            --title "Cevirix (dahili Remote Play) ${{ github.run_number }}" \
+            --notes "Tek uygulama: PS5 goruntusu + Turkce ceviri + TV altyazisi. Telefona kurun."

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="CxTema" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/cx_pink</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#4A1030</item>
+        <item name="colorOnPrimaryContainer">#FFD6E8</item>
+        <item name="colorSecondary">@color/cx_orange</item>
+        <item name="colorSecondaryContainer">#3A2416</item>
+        <item name="colorOnSecondaryContainer">#FFE2CF</item>
+        <item name="colorTertiary">@color/cx_cyan</item>
+        <item name="android:colorBackground">@color/cx_bg</item>
+        <item name="colorSurface">@color/cx_surface</item>
+        <item name="colorSurfaceVariant">@color/cx_surface2</item>
+        <item name="colorOnSurface">@color/cx_text</item>
+        <item name="colorOnSurfaceVariant">@color/cx_muted</item>
+        <item name="colorOutline">@color/cx_stroke</item>
+        <item name="android:statusBarColor">@color/cx_bg</item>
+        <item name="android:navigationBarColor">@color/cx_bg</item>
+        <item name="android:windowBackground">@color/cx_bg</item>
+    </style>
+
+    <style name="CxKart" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/cx_surface</item>
+        <item name="cardCornerRadius">22dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/cx_stroke</item>
+        <item name="android:layout_marginTop">14dp</item>
+    </style>
+
+    <style name="CxKartBaslik">
+        <item name="android:textSize">17sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/cx_text</item>
+        <item name="android:layout_marginBottom">6dp</item>
+    </style>
+
+    <style name="CxAciklama">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/cx_muted</item>
+        <item name="android:lineSpacingExtra">2dp</item>
+    </style>
+
+    <style name="CxEtiket">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/cx_text</item>
+        <item name="android:background">@drawable/cx_pill</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">12dp</item>
+        <item name="android:paddingTop">6dp</item>
+        <item name="android:paddingBottom">6dp</item>
+        <item name="android:layout_marginEnd">8dp</item>
+        <item name="android:layout_marginTop">8dp</item>
+    </style>
+</resources>
