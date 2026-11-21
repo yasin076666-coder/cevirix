@@ -105,6 +105,9 @@ class CevirixActivity : AppCompatActivity() {
         startBtn.visibility = View.GONE
         findViewById<MaterialButton>(R.id.openRpBtn).visibility = View.GONE
         if (CaptureService.instance != null) stopCapture()
+        // Çevirix açıldığı anda TV bağlansın (test düğmesi de hemen çalışır)
+        CevirixEngine.acquire(this, "Hazır")
+        engineHeld = true
         setupTranslation()
         setupDubbing()
         setupRoi()
@@ -280,6 +283,9 @@ class CevirixActivity : AppCompatActivity() {
 
         geminiSwitch.isChecked = Prefs.geminiEnabled
         geminiSwitch.setOnCheckedChangeListener { _, checked -> Prefs.geminiEnabled = checked }
+        val instantSwitch = findViewById<MaterialSwitch>(R.id.instantSwitch)
+        instantSwitch.isChecked = Prefs.instantTranslate
+        instantSwitch.setOnCheckedChangeListener { _, checked -> Prefs.instantTranslate = checked }
 
         keyInput.setText(Prefs.geminiKey)
         keyInput.doAfterTextChanged { Prefs.geminiKey = it?.toString().orEmpty() }
@@ -475,7 +481,13 @@ class CevirixActivity : AppCompatActivity() {
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
+    private var engineHeld = false
+
     override fun onDestroy() {
+        if (engineHeld) {
+            engineHeld = false
+            CevirixEngine.release()
+        }
         ui.removeCallbacks(styleRunnable)
         super.onDestroy()
     }

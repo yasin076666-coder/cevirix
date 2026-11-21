@@ -63,23 +63,81 @@ object CevirixEngine {
         AppState.update { it.copy(message = msg) }
     }
 
+    private var lastFinal = true
+
+    /**
+     * Yeni altyazı: önbellekte varsa anında; yoksa (açıksa) önce hızlı çevrimdışı çeviri gösterilir,
+     * Gemini'nin sokak dili çevirisi gelince aynı satırın yerine geçer.
+     */
     fun onSubtitleText(en: String) {
         val seq = reqSeq.incrementAndGet()
         val t0 = SystemClock.elapsedRealtime()
         scope.launch {
-            val res = runCatching { translator.translate(en) }.getOrNull() ?: return@launch
-            if (res.tr.isBlank()) return@launch
-            synchronized(emitLock) {
-                if (seq <= lastEmitted) return@launch
-                lastEmitted = seq
+            translator.cached(en)?.let {
+                emit(seq, en, it, "Önbellek", final = true, t0 = t0)
+                return@launch
             }
-            server?.sendSubtitle(res.tr, en, seq)
-            if (Prefs.dubbing) speaker?.speak(res.tr)
-            val ms = SystemClock.elapsedRealtime() - t0
-            AppState.update {
-                it.copy(lastEn = en, lastTr = res.tr, latencyMs = ms, engine = res.engine, lineCount = it.lineCount + 1)
+            val useGemini = translator.geminiAvailable
+            val fastJob = if (!useGemini || Prefs.instantTranslate) {
+                launch {
+                    val fast = runCatching { translator.offline(en) }.getOrNull()
+                    if (fast != null) emit(seq, en, fast, "Hızlı", final = !useGemini, t0 = t0)
+                }
+            } else null
+
+            if (useGemini) {
+                val g = runCatching { translator.gemini(en) }.getOrNull()
+                when {
+                    g == null -> {
+                        // Gemini kullanılamadı: hızlı çeviri yoksa şimdi yap
+                        if (fastJob == null) {
+                            val fast = runCatching { translator.offline(en) }.getOrNull()
+                            if (fast != null) emit(seq, en, fast, "Çevrimdışı", final = true, t0 = t0)
+                        } else {
+                            fastJob.join()
+                            finalizeFast(seq)
+                        }
+                    }
+                    g.isBlank() -> {
+                        // Diyalog değil: hızlı çeviri ekrana çıktıysa kaldır
+                        fastJob?.cancel()
+                        clearIfCurrent(seq)
+                    }
+                    else -> emit(seq, en, g, "Gemini", final = true, t0 = t0)
+                }
             }
         }
+    }
+
+    private fun emit(seq: Long, en: String, tr: String, engine: String, final: Boolean, t0: Long) {
+        synchronized(emitLock) {
+            if (seq < lastEmitted) return // daha yeni bir satır gösteriliyor
+            if (seq == lastEmitted && lastFinal) return // kesin çeviri zaten gösterildi
+            lastEmitted = seq
+            lastFinal = final
+        }
+        server?.sendSubtitle(tr, en, seq)
+        if (final && Prefs.dubbing) speaker?.speak(tr)
+        val ms = SystemClock.elapsedRealtime() - t0
+        AppState.update {
+            it.copy(lastEn = en, lastTr = tr, latencyMs = ms, engine = engine, lineCount = it.lineCount + 1)
+        }
+    }
+
+    /** Gemini başarısız olduysa hızlı çeviriyi kesin say (seslendirme için). */
+    private fun finalizeFast(seq: Long) {
+        val speak: Boolean
+        synchronized(emitLock) {
+            speak = seq == lastEmitted && !lastFinal
+            if (speak) lastFinal = true
+        }
+        if (speak && Prefs.dubbing) speaker?.speak(AppState.status.value.lastTr)
+    }
+
+    private fun clearIfCurrent(seq: Long) {
+        val clear: Boolean
+        synchronized(emitLock) { clear = seq == lastEmitted }
+        if (clear) server?.sendClear()
     }
 
     fun sendClear() {

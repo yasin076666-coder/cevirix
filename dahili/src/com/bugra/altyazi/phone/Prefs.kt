@@ -67,6 +67,11 @@ object Prefs {
         get() = sp.getString("psn_account_id", "") ?: ""
         set(v) = sp.edit().putString("psn_account_id", v.trim()).apply()
 
+    /** Anında çeviri: önce çevrimdışı hızlı çeviri, Gemini gelince yerine geçer. */
+    var instantTranslate: Boolean
+        get() = sp.getBoolean("instant_translate", true)
+        set(v) = sp.edit().putBoolean("instant_translate", v).apply()
+
     /** Dahili Remote Play açıkken altyazıyı çevir. */
     var streamTranslate: Boolean
         get() = sp.getBoolean("stream_translate", true)

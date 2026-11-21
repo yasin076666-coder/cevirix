@@ -5,12 +5,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Çeviri yöneticisi: önce önbellek, sonra Gemini (sokak dili), sorun olursa
- * otomatik olarak çevrimdışı ML Kit çevirisine geçer.
+ * Çeviri yöneticisi. Üç parça:
+ * - cached(): daha önce çevrilmiş satır (anında)
+ * - offline(): telefon içi ML Kit çevirisi (~0,1 sn, kitap dili)
+ * - gemini(): Gemini ile GTA sokak dili (0,5-1,5 sn)
  */
 class Translator {
-
-    data class Result(val tr: String, val engine: String)
 
     private val cache = object : LinkedHashMap<String, String>(256, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 400
@@ -23,41 +23,46 @@ class Translator {
 
     var onNotice: ((String) -> Unit)? = null
 
-    suspend fun translate(en: String): Result? {
+    fun cached(en: String): String? {
         val key = TextTools.normalize(en)
-        synchronized(cache) { cache[key] }?.let { return Result(it, "Önbellek") }
-
-        val geminiReady = Prefs.geminiEnabled && Prefs.geminiKey.isNotBlank() &&
-            SystemClock.elapsedRealtime() >= pausedUntil
-
-        if (geminiReady) {
-            val ctx = synchronized(history) { history.toList() }
-            try {
-                val tr = withContext(Dispatchers.IO) {
-                    GeminiClient.translate(Prefs.geminiKey, Prefs.geminiModel, en, ctx)
-                }
-                failStreak = 0
-                if (tr.isBlank()) return null // Gemini bunun diyalog olmadığına karar verdi
-                remember(key, en, tr)
-                return Result(tr, "Gemini")
-            } catch (e: Exception) {
-                failStreak++
-                handleError(e)
-            }
-        }
-
-        if (OfflineTranslator.state.value != OfflineTranslator.ModelState.READY) {
-            OfflineTranslator.download()
-            notice("Çevrimdışı Türkçe paketi indiriliyor…")
-            return null
-        }
-        val tr = OfflineTranslator.translate(en) ?: return null
-        if (tr.isBlank()) return null
-        remember(key, en, tr)
-        return Result(tr, "Çevrimdışı")
+        return synchronized(cache) { cache[key] }
     }
 
-    private fun remember(key: String, en: String, tr: String) {
+    val geminiAvailable: Boolean
+        get() = Prefs.geminiEnabled && Prefs.geminiKey.isNotBlank() && SystemClock.elapsedRealtime() >= pausedUntil
+
+    /** Çevrimdışı hızlı çeviri. Paket hazır değilse indirmeyi başlatır ve null döner. */
+    suspend fun offline(en: String): String? {
+        if (OfflineTranslator.state.value != OfflineTranslator.ModelState.READY) {
+            OfflineTranslator.download()
+            return null
+        }
+        return OfflineTranslator.translate(en)?.takeIf { it.isNotBlank() }
+    }
+
+    /**
+     * Gemini çevirisi. null: kullanılamadı/hata (yedek kullanılmalı).
+     * Boş metin: Gemini bunun diyalog olmadığına karar verdi.
+     */
+    suspend fun gemini(en: String): String? {
+        if (!geminiAvailable) return null
+        val ctx = synchronized(history) { history.toList() }
+        return try {
+            val tr = withContext(Dispatchers.IO) {
+                GeminiClient.translate(Prefs.geminiKey, Prefs.geminiModel, en, ctx)
+            }
+            failStreak = 0
+            if (tr.isNotBlank()) remember(en, tr)
+            tr
+        } catch (e: Exception) {
+            failStreak++
+            handleError(e)
+            null
+        }
+    }
+
+    fun remember(en: String, tr: String) {
+        val key = TextTools.normalize(en)
         synchronized(cache) { cache[key] = tr }
         synchronized(history) {
             history.addLast(en to tr)

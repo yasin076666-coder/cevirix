@@ -101,7 +101,7 @@ class SubtitleOcr(
 
         // Küçük yazılar için büyüterek oku
         val ocrBitmap = try {
-            if (crop.width < 1800) Bitmap.createScaledBitmap(crop, crop.width * 2, crop.height * 2, true) else crop
+            if (crop.width < 1000) Bitmap.createScaledBitmap(crop, crop.width * 2, crop.height * 2, true) else crop
         } catch (e: OutOfMemoryError) {
             crop
         }
@@ -180,8 +180,13 @@ class SubtitleOcr(
             candidate = ""
             return
         }
+        // Yeterince uzun ve birden çok kelimeli yazı: ilk görüşte gönder (hız).
+        // Kısa parçalar (titreme/yarım okuma riski): iki kez görülünce gönder.
+        val words = joined.split(' ').count { w -> w.count { it.isLetter() } >= 2 }
         val cand = candidate
-        if (cand.isNotEmpty() && TextTools.similar(n, TextTools.normalize(cand))) {
+        if ((n.length >= 10 && words >= 2) ||
+            (cand.isNotEmpty() && TextTools.similar(n, TextTools.normalize(cand)))
+        ) {
             shown = n
             candidate = ""
             onText(joined)
