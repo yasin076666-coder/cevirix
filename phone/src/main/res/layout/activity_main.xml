@@ -404,6 +404,14 @@
                     android:scaleType="fitCenter" />
 
                 <TextView
+                    android:id="@+id/rawText"
+                    style="@style/Aciklama"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/cyan" />
+
+                <TextView
                     android:id="@+id/roiLabel"
                     style="@style/Aciklama"
                     android:layout_width="wrap_content"

@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var modelInput: TextInputEditText
     private lateinit var chips: List<Chip>
     private lateinit var previewImage: ImageView
+    private lateinit var rawText: TextView
 
     private val ui = Handler(Looper.getMainLooper())
     private val styleRunnable = Runnable { CaptureService.instance?.pushStyle() }
@@ -89,6 +90,7 @@ class MainActivity : AppCompatActivity() {
         offlineBtn = findViewById(R.id.offlineBtn)
         modelInput = findViewById(R.id.modelInput)
         previewImage = findViewById(R.id.previewImage)
+        rawText = findViewById(R.id.rawText)
 
         setupStatus()
         setupTranslation()
@@ -165,6 +167,12 @@ class MainActivity : AppCompatActivity() {
         lastTr.text = s.lastTr.ifBlank { "Henüz altyazı yok" }
         lastEn.text = s.lastEn
         lastEn.visibility = if (s.lastEn.isBlank()) View.GONE else View.VISIBLE
+        rawText.text = if (!s.running) {
+            "Teşhis: çalışmıyor"
+        } else {
+            "Teşhis: ${s.frames} kare yakalandı · ${s.ocrRuns} kez okundu\nSon okunan yazı: " +
+                s.rawText.ifBlank { "(henüz yazı bulunamadı)" }
+        }
 
         startBtn.text = if (s.running) "Durdur" else "Başlat"
         val btnColor = if (s.running) R.color.surface2 else R.color.pink

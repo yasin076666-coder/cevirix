@@ -15,7 +15,10 @@ object AppState {
         val lastTr: String = "",
         val latencyMs: Long = 0,
         val engine: String = "",
-        val lineCount: Int = 0
+        val lineCount: Int = 0,
+        val frames: Long = 0,
+        val ocrRuns: Long = 0,
+        val rawText: String = ""
     )
 
     val status = MutableStateFlow(Status())

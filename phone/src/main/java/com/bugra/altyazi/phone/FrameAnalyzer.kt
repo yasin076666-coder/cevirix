@@ -47,6 +47,9 @@ class FrameAnalyzer(
     private var blackSince = 0L
     private var blackNoticeAt = 0L
     private var frameBitmap: Bitmap? = null
+    private var frameCount = 0L
+    private var ocrCount = 0L
+    @Volatile private var lastTextPreviewAt = 0L
 
     /** Görüntüyü her durumda kapatır. Yakalama thread'inde çağrılır. */
     fun onImage(image: Image) {
@@ -70,6 +73,11 @@ class FrameAnalyzer(
         val now = SystemClock.uptimeMillis()
         if (now - lastFrameAt < FRAME_INTERVAL_MS) return
         lastFrameAt = now
+        frameCount++
+        if (frameCount % 5 == 0L) {
+            val fc = frameCount
+            AppState.update { it.copy(frames = fc) }
+        }
 
         val w = image.width
         val h = image.height
@@ -137,7 +145,7 @@ class FrameAnalyzer(
 
         try {
             recognizer.process(InputImage.fromBitmap(crop, 0))
-                .addOnSuccessListener(ocrExecutor) { result -> if (!closed) handleText(result) }
+                .addOnSuccessListener(ocrExecutor) { result -> if (!closed) handleText(result, crop) }
                 .addOnCompleteListener(ocrExecutor) { busy.set(false) }
         } catch (e: Exception) {
             busy.set(false)
@@ -154,6 +162,8 @@ class FrameAnalyzer(
 
     private fun maybePreview(now: Long, crop: Bitmap) {
         if (now - lastPreviewAt < PREVIEW_INTERVAL_MS) return
+        // Yazı bulunan kare yakın zamanda gösterildiyse onu ezme
+        if (SystemClock.uptimeMillis() - lastTextPreviewAt < 6000) return
         lastPreviewAt = now
         try {
             val scale = min(1f, 720f / crop.width)
@@ -175,7 +185,24 @@ class FrameAnalyzer(
         }
     }
 
-    private fun handleText(result: Text) {
+    private fun setPreview(crop: Bitmap) {
+        try {
+            val scale = min(1f, 720f / crop.width)
+            val pw = max(1, (crop.width * scale).toInt())
+            val ph = max(1, (crop.height * scale).toInt())
+            AppState.preview.value = Bitmap.createScaledBitmap(crop, pw, ph, true)
+        } catch (e: Exception) { }
+    }
+
+    private fun handleText(result: Text, crop: Bitmap) {
+        ocrCount++
+        val raw = result.text.replace('\n', ' ').trim()
+        val oc = ocrCount
+        AppState.update { it.copy(ocrRuns = oc, rawText = if (raw.isBlank()) it.rawText else raw.take(160)) }
+        if (raw.isNotBlank()) {
+            lastTextPreviewAt = SystemClock.uptimeMillis()
+            setPreview(crop)
+        }
         val lines = result.textBlocks
             .flatMap { it.lines }
             .sortedBy { it.boundingBox?.top ?: 0 }
