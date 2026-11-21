@@ -622,11 +622,34 @@ class CevirixActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.stopStreamBtn).setOnClickListener {
             StreamCapture.current?.finishStream()
         }
+        val muteBtn = findViewById<MaterialButton>(R.id.muteBtn)
+        val muteSwitch = findViewById<MaterialSwitch>(R.id.muteSwitch)
+        muteSwitch.isChecked = Prefs.psMuted
+        renderMute(muteBtn)
+        muteBtn.setOnClickListener {
+            PsAudio.set(!Prefs.psMuted)
+            muteSwitch.isChecked = Prefs.psMuted
+            renderMute(muteBtn)
+            toast(if (Prefs.psMuted) "PS5 sesi kapatıldı" else "PS5 sesi açıldı")
+        }
+        muteSwitch.setOnCheckedChangeListener { _, checked ->
+            if (checked != Prefs.psMuted) {
+                PsAudio.set(checked)
+                renderMute(muteBtn)
+            }
+        }
         findViewById<MaterialButton>(R.id.fontDownBtn).setOnClickListener { nudgeFont(-2) }
         findViewById<MaterialButton>(R.id.fontUpBtn).setOnClickListener { nudgeFont(+2) }
         findViewById<MaterialButton>(R.id.posDownBtn).setOnClickListener { nudgeY(-10) }
         findViewById<MaterialButton>(R.id.posUpBtn).setOnClickListener { nudgeY(+10) }
         updateTvSample()
+    }
+
+    private fun renderMute(btn: MaterialButton) {
+        btn.setIconResource(if (Prefs.psMuted) R.drawable.cx_i_vol_off else R.drawable.cx_i_vol_on)
+        btn.backgroundTintList = ColorStateList.valueOf(
+            if (Prefs.psMuted) ContextCompat.getColor(this, R.color.cx_pink) else android.graphics.Color.argb(179, 0, 0, 0)
+        )
     }
 
     private fun nudgeFont(d: Int) {

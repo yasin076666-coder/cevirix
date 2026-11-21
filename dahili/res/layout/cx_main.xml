@@ -125,12 +125,30 @@
                             android:textColor="#FFFFFF"
                             android:textSize="11sp" />
 
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/muteBtn"
+                            style="@style/Widget.Material3.Button.IconButton.Filled"
+                            android:layout_width="44dp"
+                            android:layout_height="44dp"
+                            android:layout_gravity="top|end"
+                            android:layout_margin="4dp"
+                            android:contentDescription="PS5 sesini aç veya kapat"
+                            android:insetLeft="0dp"
+                            android:insetTop="0dp"
+                            android:insetRight="0dp"
+                            android:insetBottom="0dp"
+                            app:backgroundTint="#B3000000"
+                            app:icon="@drawable/cx_i_vol_on"
+                            app:iconSize="22dp"
+                            app:iconTint="#FFFFFF" />
+
                         <TextView
                             android:id="@+id/latencyChip"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_gravity="top|end"
-                            android:layout_margin="8dp"
+                            android:layout_gravity="top|start"
+                            android:layout_marginStart="96dp"
+                            android:layout_marginTop="8dp"
                             android:background="@drawable/cx_sub_bg"
                             android:paddingStart="8dp"
                             android:paddingTop="3dp"
@@ -386,6 +404,18 @@
                             android:paddingTop="4dp"
                             android:paddingEnd="14dp"
                             android:paddingBottom="4dp">
+
+                            <com.google.android.material.materialswitch.MaterialSwitch
+                                android:id="@+id/muteSwitch"
+                                style="@style/CxAnahtar"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="PS5 sesini kapat" />
+
+                            <com.google.android.material.divider.MaterialDivider
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:dividerColor="@color/cx_stroke" />
 
                             <com.google.android.material.materialswitch.MaterialSwitch
                                 android:id="@+id/streamTranslateSwitch"

@@ -104,6 +104,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         }
         current = this
         AppState.streaming.value = true
+        PsAudio.apply()
         addHud()
         BgService.onStopRequested = { ui.post { try { activity.finish() } catch (e: Exception) { } } }
         // Arka plan için görünmez yüzeyi önceden hazırla

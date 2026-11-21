@@ -272,6 +272,29 @@ s = replace_once(
 write(p, s)
 print("akış oturumu güncellendi")
 
+# 5c) PS5 sesi: istendiğinde sustur (ses verisi sıfırlanır, bağlantı sürer)
+p = os.path.join(app, "src", "main", "cpp", "audio-output.cpp")
+s = read(p)
+s = replace_once(
+    s,
+    "#include <oboe/Oboe.h>\n",
+    "#include <oboe/Oboe.h>\n#include <atomic>\n#include <jni.h>\n\n"
+    "static std::atomic<bool> cevirix_muted(false);\n\n"
+    "extern \"C\" JNIEXPORT void JNICALL Java_com_bugra_altyazi_phone_PsAudio_nativeSetMuted(JNIEnv *env, jclass cls, jboolean muted)\n"
+    "{\n\tcevirix_muted.store(muted == JNI_TRUE);\n}\n",
+    "ses kesme değişkeni",
+)
+s = replace_once(
+    s,
+    "\t\tmemset(buf + buf_size_delivered, 0, buf_size_requested - buf_size_delivered);\n\t}\n",
+    "\t\tmemset(buf + buf_size_delivered, 0, buf_size_requested - buf_size_delivered);\n\t}\n\n"
+    "\tif(cevirix_muted.load(std::memory_order_relaxed))\n"
+    "\t\tmemset(buf, 0, buf_size_requested);\n",
+    "ses kesme",
+)
+write(p, s)
+print("ses kesme eklendi")
+
 # 6) Eşleştirme ekranı: hesap kimliğini otomatik doldur
 p = os.path.join(main, "java", "com", "metallic", "chiaki", "regist", "RegistActivity.kt")
 s = read(p)

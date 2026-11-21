@@ -87,6 +87,11 @@ object Prefs {
         get() = sp.getBoolean("mini_view", true)
         set(v) = sp.edit().putBoolean("mini_view", v).apply()
 
+    /** PS5'ten telefona gelen oyun sesi kapalı mı? */
+    var psMuted: Boolean
+        get() = sp.getBoolean("ps_muted", false)
+        set(v) = sp.edit().putBoolean("ps_muted", v).apply()
+
     var tvShowEn: Boolean
         get() = sp.getBoolean("tv_en", false)
         set(v) = sp.edit().putBoolean("tv_en", v).apply()
