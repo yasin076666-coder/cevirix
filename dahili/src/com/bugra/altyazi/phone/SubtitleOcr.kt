@@ -107,11 +107,55 @@ class SubtitleOcr(
         }
 
         try {
+            val scale = ocrBitmap.width.toFloat() / crop.width
             recognizer.process(InputImage.fromBitmap(ocrBitmap, 0))
-                .addOnSuccessListener(ocrExecutor) { result -> if (!closed) handleText(result, crop) }
+                .addOnSuccessListener(ocrExecutor) { result -> if (!closed) handleText(result, crop, scale) }
                 .addOnCompleteListener(ocrExecutor) { busy.set(false) }
         } catch (e: Exception) {
             busy.set(false)
+        }
+    }
+
+    private fun isShortUnpunctuated(t: String): Boolean =
+        t.split(' ').count { w -> w.count { it.isLetter() } >= 2 } <= 3 && !Regex("[!?.…]$").containsMatchIn(t)
+
+    /**
+     * Açık zemin üstünde koyu yazı mı? (plaka, tabela, logo)
+     * Oyun altyazıları açık renkli yazıdır; plakalar beyaz zemin üstünde koyu harflerdir.
+     */
+    private fun isDarkTextOnLight(crop: Bitmap, box: android.graphics.Rect?, scale: Float): Boolean {
+        if (box == null || scale <= 0f) return false
+        return try {
+            val l = (box.left / scale).toInt().coerceIn(0, crop.width - 1)
+            val t = (box.top / scale).toInt().coerceIn(0, crop.height - 1)
+            val r = (box.right / scale).toInt().coerceIn(l + 1, crop.width)
+            val b = (box.bottom / scale).toInt().coerceIn(t + 1, crop.height)
+            val w = r - l
+            val h = b - t
+            if (w < 6 || h < 6) return false
+            val px = IntArray(w * h)
+            crop.getPixels(px, 0, w, l, t, w, h)
+            fun lum(c: Int) = (((c shr 16) and 0xFF) * 3 + ((c shr 8) and 0xFF) * 6 + (c and 0xFF)) / 10
+            var borderSum = 0L
+            var borderN = 0
+            for (x in 0 until w) {
+                borderSum += lum(px[x]) + lum(px[(h - 1) * w + x]); borderN += 2
+            }
+            for (y in 1 until h - 1) {
+                borderSum += lum(px[y * w]) + lum(px[y * w + w - 1]); borderN += 2
+            }
+            val bg = (borderSum / borderN).toInt()
+            if (bg < 140) return false
+            var dark = 0
+            var bright = 0
+            for (y in 1 until h - 1) for (x in 1 until w - 1) {
+                val v = lum(px[y * w + x])
+                if (v < bg - 60) dark++ else if (v > bg + 40) bright++
+            }
+            val inner = (w - 2) * (h - 2)
+            dark > inner * 0.05 && dark > bright * 2
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -143,7 +187,7 @@ class SubtitleOcr(
         }
     }
 
-    private fun handleText(result: Text, crop: Bitmap) {
+    private fun handleText(result: Text, crop: Bitmap, scale: Float) {
         ocrCount++
         val raw = result.text.replace('\n', ' ').trim()
         val oc = ocrCount
@@ -156,8 +200,12 @@ class SubtitleOcr(
         val lines = result.textBlocks
             .flatMap { it.lines }
             .sortedBy { it.boundingBox?.top ?: 0 }
+            .filter { line ->
+                val t = line.text.trim()
+                TextTools.isDialogLine(t) && !TextTools.isNoiseLine(t) &&
+                    !(isShortUnpunctuated(t) && isDarkTextOnLight(crop, line.boundingBox, scale))
+            }
             .map { it.text.trim() }
-            .filter { TextTools.isDialogLine(it) }
         val joined = TextTools.clean(lines.joinToString(" "))
 
         if (joined.length < 3) {

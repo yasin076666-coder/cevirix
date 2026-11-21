@@ -21,6 +21,59 @@ object TextTools {
         return letters >= nonSpace * 0.5
     }
 
+    // GTA araç markaları ve sık görülen tabela/model yazıları (tek başına görülünce diyalog sayılmaz)
+    private val BRANDS = setOf(
+        "albany", "annis", "benefactor", "bf", "bollokan", "bravado", "brute", "buckingham", "canis",
+        "chariot", "cheval", "coil", "declasse", "dewbauchee", "dinka", "dundreary", "emperor", "enus",
+        "fathom", "gallivanter", "grotti", "hijak", "hvy", "imponte", "invetero", "jacksheepe", "jobuilt",
+        "karin", "lampadati", "lcc", "maibatsu", "mammoth", "maxwell", "mtl", "nagasaki", "obey", "ocelot",
+        "overflod", "pegassi", "pfister", "principe", "progen", "rune", "schyster", "shitzu", "stanley",
+        "truffade", "ubermacht", "vapid", "vulcar", "vysser", "weeny", "western", "willard", "zirconium",
+        "sentinel", "oracle", "felon", "zion", "tailgater", "buffalo", "dominator", "gauntlet", "banshee",
+        "infernus", "adder", "zentorno", "comet", "sultan", "elegy", "kuruma", "faggio", "sanchez",
+        "leonida", "vice", "city", "taxi", "police", "sheriff", "vcpd", "lspd", "ammunation", "ammu",
+        "nation", "cluckin", "bell", "burger", "shot", "bean", "machine", "pisswasser", "sprunk", "ecola",
+        "lsc", "customs", "los", "santos", "motel", "gas", "station", "open", "closed", "exit", "stop",
+        "one", "way", "only", "keep", "right", "left", "speed", "limit", "mph", "sale", "for", "rent"
+    )
+    private val endPunct = Regex("[!?.…]$")
+
+    /**
+     * Plaka, marka, tabela gibi diyalog olmayan yazıları ayıklar.
+     * Ör. "z G03-821", "6ABC123", "Ubermacht", "Grotti Turismo", "Bean Machine".
+     */
+    fun isNoiseLine(line: String): Boolean {
+        val tokens = line.split(spaces).filter { it.isNotBlank() }
+        if (tokens.isEmpty()) return true
+        var realWords = 0
+        var mixed = 0
+        var digitTokens = 0
+        val words = ArrayList<String>()
+        for (t in tokens) {
+            val letters = t.count { it.isLetter() }
+            val digits = t.count { it.isDigit() }
+            when {
+                letters > 0 && digits > 0 -> mixed++          // G03-821, 6ABC123
+                digits > 0 -> digitTokens++                   // 821, 2026
+                letters >= 2 -> { realWords++; words += t.lowercase().filter { it.isLetter() } }
+            }
+        }
+        // Plaka: harf-rakam karışık parçalar ağırlıkta
+        if (realWords == 0) return true
+        if (mixed > 0 && mixed + digitTokens >= realWords) return true
+
+        val hasPunct = endPunct.containsMatchIn(line.trim())
+        if (!hasPunct && realWords <= 3) {
+            // Tamamen marka/tabela kelimeleri
+            if (words.all { it in BRANDS }) return true
+            // Tek kelime, noktalama yok, sözlükte de yok: büyük ihtimalle model adı veya tabela
+            if (realWords == 1 && OfflineSlang.translateFromPhrasesOnly(line) == null) return true
+            // Küçük harf hiç yok (tabela: "BEAN MACHINE")
+            if (line.none { it.isLowerCase() } && OfflineSlang.translateFromPhrasesOnly(line) == null) return true
+        }
+        return false
+    }
+
     /** OCR titremelerinde aynı cümleyi tekrar göndermemek için benzerlik ölçer. */
     fun similar(a: String, b: String, threshold: Double = 0.85): Boolean {
         if (a == b) return true
