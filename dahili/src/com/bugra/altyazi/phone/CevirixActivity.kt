@@ -183,6 +183,9 @@ class CevirixActivity : AppCompatActivity() {
         val sw = findViewById<MaterialSwitch>(R.id.streamTranslateSwitch)
         sw.isChecked = Prefs.streamTranslate
         sw.setOnCheckedChangeListener { _, checked -> Prefs.streamTranslate = checked }
+        val bg = findViewById<MaterialSwitch>(R.id.backgroundSwitch)
+        bg.isChecked = Prefs.backgroundStream
+        bg.setOnCheckedChangeListener { _, checked -> Prefs.backgroundStream = checked }
         renderPsn()
     }
 

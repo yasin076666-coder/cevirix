@@ -120,6 +120,7 @@ s = replace_once(
     '    <uses-permission android:name="android.permission.WAKE_LOCK" />\n'
     '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n'
     '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />\n'
+    '    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />\n'
     '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n\n'
     "    <queries>\n"
     '        <package android:name="com.playstation.remoteplay" />\n'
@@ -166,7 +167,14 @@ s = replace_once(
     "        <service\n"
     '            android:name="com.bugra.altyazi.phone.CaptureService"\n'
     '            android:exported="false"\n'
-    '            android:foregroundServiceType="mediaProjection" />\n'
+    '            android:foregroundServiceType="mediaProjection" />\n\n'
+    "        <service\n"
+    '            android:name="com.bugra.altyazi.phone.BgService"\n'
+    '            android:exported="false"\n'
+    '            android:foregroundServiceType="specialUse">\n'
+    '            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"\n'
+    '                android:value="PS5 oyun altyazisini arka planda cevirip TV ekranina gonderme" />\n'
+    "        </service>\n"
     "    </application>",
     "Çevirix ekranları",
 )
@@ -214,12 +222,55 @@ s = replace_once(
 )
 s = replace_once(
     s,
-    "\t\tcontrolsJob?.cancel()\n",
-    "\t\tcontrolsJob?.cancel()\n\t\tcevirixCapture?.stop()\n\t\tcevirixCapture = null\n",
+    "\t\tsuper.onDestroy()\n\t\tcontrolsJob?.cancel()\n",
+    "\t\tsuper.onDestroy()\n\t\tcontrolsJob?.cancel()\n\t\tviewModel.session.shutdown()\n\t\tcevirixCapture?.stop()\n\t\tcevirixCapture = null\n",
     "StreamActivity durdurma",
+)
+# Arka plan modu: uygulama arka plana geçince bağlantıyı kapatma
+s = replace_once(
+    s,
+    "\t\tsuper.onPause()\n\t\tviewModel.session.pause()\n",
+    "\t\tsuper.onPause()\n"
+    "\t\tif(cevirixCapture?.keepAliveOnPause(isFinishing) != true)\n"
+    "\t\t\tviewModel.session.pause()\n",
+    "StreamActivity onPause",
+)
+s = replace_once(
+    s,
+    "\toverride fun onDestroy()\n",
+    "\toverride fun onStart()\n\t{\n\t\tsuper.onStart()\n\t\tcevirixCapture?.onActivityStarted()\n\t}\n\n"
+    "\toverride fun onStop()\n\t{\n\t\tsuper.onStop()\n\t\tcevirixCapture?.onActivityStopped(isFinishing)\n\t}\n\n"
+    "\toverride fun onDestroy()\n",
+    "StreamActivity onStart/onStop",
 )
 write(p, s)
 print("akış ekranı güncellendi")
+
+# 5b) Akış oturumu: ekran yüzeyi kapanırken görüntüyü görünmez yüzeye aktar
+p = os.path.join(main, "java", "com", "metallic", "chiaki", "session", "StreamSession.kt")
+s = read(p)
+s = replace_once(
+    s,
+    "\t\t\t\tval surface = holder.surface\n\t\t\t\tthis@StreamSession.surface = surface\n",
+    "\t\t\t\tval surface = holder.surface\n"
+    "\t\t\t\tcom.bugra.altyazi.phone.BgFrames.inUse = false\n"
+    "\t\t\t\tthis@StreamSession.surface = surface\n",
+    "StreamSession surfaceChanged",
+)
+s = replace_once(
+    s,
+    "\t\t\toverride fun surfaceDestroyed(holder: SurfaceHolder)\n\t\t\t{\n",
+    "\t\t\toverride fun surfaceDestroyed(holder: SurfaceHolder)\n\t\t\t{\n"
+    "\t\t\t\tval bg = com.bugra.altyazi.phone.BgFrames.takeoverSurface()\n"
+    "\t\t\t\tif(bg != null && session != null)\n\t\t\t\t{\n"
+    "\t\t\t\t\tthis@StreamSession.surface = bg\n"
+    "\t\t\t\t\tsession?.setSurface(bg)\n"
+    "\t\t\t\t\treturn\n\t\t\t\t}\n"
+    "\t\t\t\tcom.bugra.altyazi.phone.BgFrames.inUse = false\n",
+    "StreamSession surfaceDestroyed",
+)
+write(p, s)
+print("akış oturumu güncellendi")
 
 # 6) Eşleştirme ekranı: hesap kimliğini otomatik doldur
 p = os.path.join(main, "java", "com", "metallic", "chiaki", "regist", "RegistActivity.kt")

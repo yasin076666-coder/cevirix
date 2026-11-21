@@ -77,6 +77,11 @@ object Prefs {
         get() = sp.getBoolean("stream_translate", true)
         set(v) = sp.edit().putBoolean("stream_translate", v).apply()
 
+    /** Telefon başka işte kullanılırken (uygulama arka plandayken) çeviriye devam et. */
+    var backgroundStream: Boolean
+        get() = sp.getBoolean("background_stream", true)
+        set(v) = sp.edit().putBoolean("background_stream", v).apply()
+
     var tvShowEn: Boolean
         get() = sp.getBoolean("tv_en", false)
         set(v) = sp.edit().putBoolean("tv_en", v).apply()

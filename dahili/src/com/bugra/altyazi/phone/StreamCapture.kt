@@ -29,6 +29,8 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
 
     companion object {
         private const val INTERVAL_MS = 200L
+        private const val BG_W = 1280
+        private const val BG_H = 720
     }
 
     private val tickThread = HandlerThread("cevirix-tick").apply { start() }
@@ -89,12 +91,42 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             it.copy(frames = 0, ocrRuns = 0, copyOk = 0, copyFail = 0, copyErr = 0, rawText = "", source = "Dahili Remote Play")
         }
         addHud()
+        BgService.onStopRequested = { ui.post { try { activity.finish() } catch (e: Exception) { } } }
+        // Arka plan için görünmez yüzeyi önceden hazırla
+        tickHandler.post { if (Prefs.backgroundStream) BgFrames.prepare() }
         tickHandler.postDelayed(tick, 1500)
         ui.post(hudUpdater)
     }
 
+    /**
+     * Akış ekranı duraklarken çağrılır. true: bağlantı açık kalsın (arka plan modu).
+     * Ekran kapanıyorsa (geri tuşu) veya arka plan modu kapalıysa false.
+     */
+    fun keepAliveOnPause(finishing: Boolean): Boolean {
+        val keep = running && !finishing && Prefs.backgroundStream && BgFrames.isReady
+        BgFrames.keepAliveWanted = keep
+        return keep
+    }
+
+    /** Ekran tamamen görünmez oldu: arka plan servisini başlat. */
+    fun onActivityStopped(finishing: Boolean) {
+        if (BgFrames.keepAliveWanted && !finishing) {
+            BgService.start(activity)
+            CevirixEngine.notice("Arka planda çeviriye devam ediliyor")
+        }
+    }
+
+    /** Ekran geri geldi: servis gerekmez. */
+    fun onActivityStarted() {
+        BgFrames.keepAliveWanted = false
+        BgService.stop(activity)
+    }
+
     fun stop() {
         running = false
+        BgFrames.keepAliveWanted = false
+        BgService.onStopRequested = null
+        BgService.stop(activity)
         tickHandler.removeCallbacksAndMessages(null)
         copyHandler.removeCallbacksAndMessages(null)
         ui.removeCallbacksAndMessages(null)
@@ -104,6 +136,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             acquired = false
             CevirixEngine.release()
         }
+        tickHandler.post { BgFrames.release() }
         try { tickThread.quitSafely() } catch (e: Exception) { }
         try { copyThread.quitSafely() } catch (e: Exception) { }
     }
@@ -116,6 +149,10 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             copyFail++
             lastErr = -2
             publishCopyStats()
+        }
+        if (BgFrames.inUse) {
+            captureBackground()
+            return
         }
         val w = surfaceView.width
         val h = surfaceView.height
@@ -146,6 +183,19 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             publishCopyStats()
         } catch (e: OutOfMemoryError) {
             inFlight = false
+        }
+    }
+
+    /** Arka planda: görüntüyü görünmez yüzeyden GPU ile oku. */
+    private fun captureBackground() {
+        try {
+            val full = obtainFull(BG_W, BG_H)
+            if (!BgFrames.grab(full)) return // henüz kare yok
+            val crop = cropSubtitle(full)
+            onCopied(if (crop != null) PixelCopy.SUCCESS else -3, crop)
+        } catch (e: Throwable) {
+            copyFail++
+            lastErr = -4
         }
     }
 

@@ -103,6 +103,13 @@
                     android:text="Oyun açıkken altyazıyı çevir"
                     android:textColor="@color/cx_text" />
 
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/backgroundSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Arka planda devam et (telefonu kullanabilirsin)"
+                    android:textColor="@color/cx_text" />
+
                 <TextView
                     style="@style/CxAciklama"
                     android:layout_width="match_parent"
