@@ -1,0 +1,82 @@
+name: Cevirix PC (Windows) derle
+
+on:
+  push:
+    paths:
+      - "pc/**"
+      - "dahili/assets/sokak_sozlugu.json"
+      - ".github/workflows/cevirix-pc.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  derle:
+    runs-on: windows-latest
+    env:
+      CEVIRIX_SURUM: "1.0.${{ github.run_number }}"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Python paketleri
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r pc/requirements.txt pyinstaller pillow
+
+      - name: Programi derle (PyInstaller)
+        working-directory: pc
+        shell: pwsh
+        run: |
+          Copy-Item ../dahili/assets/sokak_sozlugu.json veri/
+          pyinstaller --noconfirm --clean --windowed --name Cevirix --icon veri/cevirix.ico `
+            --add-data "veri/sokak_sozlugu.json;." --add-data "veri/logo.png;." --add-data "veri/cevirix.ico;." `
+            --collect-all rapidocr_onnxruntime --collect-all onnxruntime Cevirix.py
+
+      - name: Oz test (OCR + sozluk paketin icinde calisiyor mu)
+        working-directory: pc
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD "oz_test.json"
+          Start-Process -FilePath "dist/Cevirix/Cevirix.exe" -ArgumentList "--test", "`"$out`"" -Wait
+          Get-Content $out -Encoding UTF8
+          python -c "import json,sys; d=json.load(open(sys.argv[1],encoding='utf-8')); assert 'gotta' in d.get('ocr','').lower(), d; assert d.get('sozluk',0) > 1000, d; print('OZ TEST TAMAM')" $out
+
+      - name: PS5 baglanti programini ekle (chiaki-ng, Windows)
+        shell: pwsh
+        run: |
+          $rel = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } https://api.github.com/repos/streetpea/chiaki-ng/releases/latest
+          Write-Host "chiaki-ng surumu: $($rel.tag_name)"
+          $rel.assets | ForEach-Object { Write-Host " - $($_.name)" }
+          $aday = $rel.assets | Where-Object { $_.name -match 'win' -and $_.name -match 'x64' -and $_.name -match 'portable' -and $_.name -like '*.zip' -and $_.name -notmatch 'arm' }
+          $sec = $aday | Sort-Object { ($(if ($_.name -match 'SDL2') { 2 } else { 0 })) + ($(if ($_.name -match 'MSYS2') { 0 } else { 1 })) } | Select-Object -First 1
+          if (-not $sec) { throw "chiaki-ng Windows paketi bulunamadi" }
+          Write-Host "Secilen: $($sec.name)"
+          Invoke-WebRequest $sec.browser_download_url -OutFile chiaki.zip
+          Expand-Archive chiaki.zip -DestinationPath pc/dist/Cevirix/chiaki-ng
+          $exe = Get-ChildItem -Recurse pc/dist/Cevirix/chiaki-ng -Include chiaki.exe, chiaki-ng.exe | Select-Object -First 1
+          if (-not $exe) { throw "chiaki.exe paketin icinde yok" }
+          Write-Host "chiaki: $($exe.FullName)"
+          "chiaki-ng $($rel.tag_name) (AGPL-3.0) - kaynak: https://github.com/streetpea/chiaki-ng" | Out-File pc/dist/Cevirix/chiaki-ng/KAYNAK.txt -Encoding utf8
+          "CHIAKI_SURUM=$($rel.tag_name)" | Out-File -Append $env:GITHUB_ENV -Encoding utf8
+
+      - name: Kurulum dosyasi (Inno Setup)
+        working-directory: pc
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          & $iscc kurulum.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup hatasi" }
+          Get-ChildItem cikti
+
+      - name: Yayinla
+        shell: pwsh
+        run: |
+          $notlar = "Cevirix PC $env:CEVIRIX_SURUM (Windows 10/11). Laptopa CevirixPC-Kurulum.exe indirip kurun. PS5 baglantisi: chiaki-ng $env:CHIAKI_SURUM."
+          gh release create "pc-${{ github.run_number }}" pc/cikti/CevirixPC-Kurulum.exe --repo "${{ github.repository }}" --title "Cevirix PC $env:CEVIRIX_SURUM" --notes "$notlar"
