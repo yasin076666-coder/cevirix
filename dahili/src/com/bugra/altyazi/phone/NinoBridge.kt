@@ -98,6 +98,16 @@ object NinoBridge {
         scope.launch { runCatching { h.clear(seq?.let { (it and 0x7fffffff).toInt() }) } }
     }
 
+    fun screen(items: List<Map<String, Any?>>, durationMs: Int) {
+        val h = hub ?: return
+        scope.launch { runCatching { h.screen(items, durationMs, overlay = true) } }
+    }
+
+    fun screenClear() {
+        val h = hub ?: return
+        scope.launch { runCatching { h.screenClear() } }
+    }
+
     /** Çevirix'in TV ayarlarını Nino'nun görünüm alanlarına çevirir (1080p TV ölçüsü). */
     fun pushStyle() {
         val h = hub ?: return

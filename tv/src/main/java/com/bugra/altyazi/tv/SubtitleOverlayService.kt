@@ -238,6 +238,8 @@ class SubtitleOverlayService : Service() {
                 container?.visibility = View.GONE
             }
             "pong" -> Unit
+            "screen" -> showScreen(o.optJSONArray("items"), o.optLong("durationMs", 120000L))
+            "screen-clear" -> clearScreen()
             else -> {
                 applyStyle(o)
                 showSubtitle(o.optString("tr", ""), o.optString("en", ""), 9000)
@@ -426,6 +428,97 @@ class SubtitleOverlayService : Service() {
         }
     }
 
+    // ---------------------------------------------------------------- ekran örtüleri (GTA 6 telefon / harita kartı)
+
+    private var screenLayer: android.widget.FrameLayout? = null
+    private val clearScreenRunnable = Runnable { clearScreen() }
+
+    private fun ensureScreenLayer(): android.widget.FrameLayout? {
+        screenLayer?.let { return it }
+        return try {
+            val manager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val layer = android.widget.FrameLayout(this)
+            @Suppress("DEPRECATION")
+            val type = if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            else WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                type,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT
+            ).apply { gravity = Gravity.TOP or Gravity.START }
+            manager.addView(layer, params)
+            screenLayer = layer
+            layer
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun parseColor(hex: String?, fallback: Int): Int =
+        try { if (hex.isNullOrBlank()) fallback else Color.parseColor(hex) } catch (e: Exception) { fallback }
+
+    /** Öğeler: box (0–1), text, line (satır yüksekliği oranı), fill/ink (#rrggbb), alpha, card, backdrop, plain. */
+    private fun showScreen(items: org.json.JSONArray?, durationMs: Long) {
+        main.removeCallbacks(clearScreenRunnable)
+        if (items == null || items.length() == 0) { clearScreen(); return }
+        val layer = ensureScreenLayer() ?: return
+        layer.post {
+            layer.removeAllViews()
+            val w = layer.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+            val h = layer.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+            for (i in 0 until items.length()) {
+                val it = items.optJSONObject(i) ?: continue
+                val b = it.optJSONObject("box") ?: continue
+                val left = (b.optDouble("left", 0.0) * w).toInt()
+                val top = (b.optDouble("top", 0.0) * h).toInt()
+                val right = (b.optDouble("right", 0.0) * w).toInt()
+                val bottom = (b.optDouble("bottom", 0.0) * h).toInt()
+                if (right - left < 4 || bottom - top < 4) continue
+                val alpha = it.optDouble("alpha", if (it.optBoolean("card")) 1.0 else 0.85).coerceIn(0.0, 1.0)
+                val backdrop = it.optBoolean("backdrop")
+                val plain = it.optBoolean("plain")
+                val fill = parseColor(it.optString("fill", ""), if (it.optBoolean("card")) Color.parseColor("#1B1B22") else Color.BLACK)
+                val ink = parseColor(it.optString("ink", ""), Color.WHITE)
+                val text = it.optString("text", "")
+                    .replace("⟦", "").replace("⟧", "")
+                val v = TextView(this).apply {
+                    this.text = text
+                    setTextColor(ink)
+                    val line = it.optDouble("line", 0.03)
+                    setTextSize(TypedValue.COMPLEX_UNIT_PX, (line * h * 0.78).toFloat().coerceIn(12f, 80f))
+                    gravity = if (plain) Gravity.START or Gravity.CENTER_VERTICAL else Gravity.START or Gravity.TOP
+                    setPadding(10, 4, 10, 4)
+                    if (!plain || backdrop) {
+                        background = GradientDrawable().apply {
+                            cornerRadius = if (it.optBoolean("side")) 22f else 10f
+                            setColor(Color.argb((alpha * 255).toInt(), Color.red(fill), Color.green(fill), Color.blue(fill)))
+                        }
+                    }
+                    if (plain) setShadowLayer(4f, 1f, 1f, Color.BLACK)
+                }
+                val lpItem = android.widget.FrameLayout.LayoutParams(right - left, bottom - top)
+                lpItem.leftMargin = left
+                lpItem.topMargin = top
+                layer.addView(v, lpItem)
+            }
+            layer.visibility = View.VISIBLE
+        }
+        if (durationMs > 0) main.postDelayed(clearScreenRunnable, durationMs)
+    }
+
+    private fun clearScreen() {
+        main.removeCallbacks(clearScreenRunnable)
+        screenLayer?.let {
+            it.removeAllViews()
+            it.visibility = View.GONE
+        }
+    }
+
     private fun pill(alpha: Int) = GradientDrawable().apply {
         shape = GradientDrawable.RECTANGLE
         cornerRadius = 20f
@@ -515,6 +608,8 @@ class SubtitleOverlayService : Service() {
         netCallback = null
         try { if (wifiLock?.isHeld == true) wifiLock?.release() } catch (e: Exception) { }
         container?.let { c -> try { wm?.removeView(c) } catch (e: Exception) { } }
+        screenLayer?.let { l -> try { (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(l) } catch (e: Exception) { } }
+        screenLayer = null
         container = null
         status("Durduruldu", false)
         super.onDestroy()

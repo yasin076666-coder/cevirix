@@ -116,6 +116,7 @@ class CevirixActivity : AppCompatActivity() {
         setupSteps()
         setupLive()
         setupNino()
+        setupGta()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -645,6 +646,20 @@ class CevirixActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.posDownBtn).setOnClickListener { nudgeY(-10) }
         findViewById<MaterialButton>(R.id.posUpBtn).setOnClickListener { nudgeY(+10) }
         updateTvSample()
+    }
+
+    private fun setupGta() {
+        val sw = findViewById<MaterialSwitch>(R.id.gtaSwitch)
+        sw.isChecked = Prefs.gtaExtras
+        sw.setOnCheckedChangeListener { _, checked ->
+            Prefs.gtaExtras = checked
+            if (checked) {
+                if (StreamCapture.current != null) com.bugra.altyazi.phone.gta.GtaBridge.start(this)
+            } else {
+                com.bugra.altyazi.phone.gta.GtaBridge.stop()
+                CevirixEngine.sendScreenClear()
+            }
+        }
     }
 
     private fun setupNino() {

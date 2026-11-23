@@ -174,6 +174,36 @@ object CevirixEngine {
         return true
     }
 
+    /** Oyun içi telefon / harita kartı yazısı için tek satır çeviri (Gemini varsa o, yoksa çevrimdışı). */
+    suspend fun translateLine(en: String): String? {
+        translator.cached(en)?.let { return it }
+        if (translator.geminiAvailable) {
+            val g = runCatching { translator.gemini(en) }.getOrNull()
+            if (!g.isNullOrBlank()) return g
+        }
+        return runCatching { translator.offline(en) }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
+    fun sendScreen(items: List<Map<String, Any?>>, durationMs: Int) {
+        server?.sendScreen(toJsonArray(items), durationMs)
+        NinoBridge.screen(items, durationMs)
+    }
+
+    fun sendScreenClear() {
+        server?.sendScreenClear()
+        NinoBridge.screenClear()
+    }
+
+    private fun toJson(v: Any?): Any? = when (v) {
+        null -> org.json.JSONObject.NULL
+        is Map<*, *> -> org.json.JSONObject().also { o -> v.forEach { (k, x) -> o.put(k.toString(), toJson(x)) } }
+        is List<*> -> org.json.JSONArray().also { a -> v.forEach { a.put(toJson(it)) } }
+        else -> v
+    }
+
+    private fun toJsonArray(items: List<Map<String, Any?>>): org.json.JSONArray =
+        org.json.JSONArray().also { a -> items.forEach { a.put(toJson(it)) } }
+
     fun pushStyle(): Boolean {
         val s = server ?: return false
         s.sendStyle(preview = true)

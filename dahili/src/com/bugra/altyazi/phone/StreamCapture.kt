@@ -104,6 +104,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         }
         current = this
         AppState.streaming.value = true
+        com.bugra.altyazi.phone.gta.GtaBridge.start(activity.applicationContext)
         PsAudio.apply()
         addHud()
         BgService.onStopRequested = { ui.post { try { activity.finish() } catch (e: Exception) { } } }
@@ -156,6 +157,8 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
     fun stop() {
         running = false
         if (current === this) current = null
+        com.bugra.altyazi.phone.gta.GtaBridge.stop()
+        CevirixEngine.sendScreenClear()
         AppState.streaming.value = false
         AppState.liveFrame.value = null
         BgFrames.keepAliveWanted = false
@@ -196,7 +199,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         // Tüm kareyi sabit boyutlu bir resme kopyala (video çözünürlüğünden bağımsız),
         // altyazı şeridini sonra kes. srcRect video tamponu koordinatı istediği için kullanılmıyor.
         val fw = min(1920, max(640, w))
-        val fh = max(360, (fw.toLong() * h / w).toInt())
+        val fh = fw * 9 / 16 // video tamponu 16:9 (oranlar bozulmasın: oyun içi telefon bulma şekle bakar)
         val full = obtainFull(fw, fh)
 
         try {
@@ -204,6 +207,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             inFlightSince = SystemClock.uptimeMillis()
             PixelCopy.request(surfaceView, full, { result ->
                 if (result == PixelCopy.SUCCESS) {
+                    com.bugra.altyazi.phone.gta.GtaBridge.offer(full)
                     val crop = cropSubtitle(full)
                     onCopied(result, crop)
                 } else {
@@ -226,6 +230,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             val full = obtainFull(BG_W, BG_H)
             if (!BgFrames.grab(full)) return // henüz kare yok
             publishLive(full)
+            com.bugra.altyazi.phone.gta.GtaBridge.offer(full)
             val crop = cropSubtitle(full)
             onCopied(if (crop != null) PixelCopy.SUCCESS else -3, crop)
         } catch (e: Throwable) {

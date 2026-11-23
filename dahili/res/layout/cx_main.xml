@@ -663,6 +663,38 @@
                             style="@style/CxKartBaslik"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:text="GTA 6 oyun içi yazılar" />
+
+                        <TextView
+                            style="@style/CxAciklama"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Oyundaki telefona gelen mesajlar TV'de balon balon Türkçe görünür. Harita ve görev kartının Türkçesi kartın üstüne yerleşir." />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/gtaSwitch"
+                            style="@style/CxAnahtar"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Telefon mesajları ve harita kartı" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/CxKart"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="18dp">
+
+                        <TextView
+                            style="@style/CxKartBaslik"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:text="İnternetsiz çeviri" />
 
                         <LinearLayout

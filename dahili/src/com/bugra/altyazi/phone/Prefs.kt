@@ -97,6 +97,11 @@ object Prefs {
         get() = sp.getBoolean("nino_tv", true)
         set(v) = sp.edit().putBoolean("nino_tv", v).apply()
 
+    /** GTA 6: oyun içi telefon mesajları ve harita kartı çevirisi. */
+    var gtaExtras: Boolean
+        get() = sp.getBoolean("gta_extras", true)
+        set(v) = sp.edit().putBoolean("gta_extras", v).apply()
+
     var tvShowEn: Boolean
         get() = sp.getBoolean("tv_en", false)
         set(v) = sp.edit().putBoolean("tv_en", v).apply()

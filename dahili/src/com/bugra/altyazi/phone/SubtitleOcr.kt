@@ -116,6 +116,22 @@ class SubtitleOcr(
         }
     }
 
+    /** Satır kutusunu tüm kareye göre orana çevirir (altyazı şeridi: Roi yatay, Prefs.roiTop..roiBottom dikey). */
+    private fun frameBox(b: android.graphics.Rect?, crop: Bitmap, scale: Float): com.ninotranslator.core.reading.live.LiveBox? {
+        if (b == null || scale <= 0f) return null
+        val w = crop.width * scale
+        val h = crop.height * scale
+        if (w <= 0f || h <= 0f) return null
+        val l0 = Roi.LEFT.toDouble()
+        val r0 = Roi.RIGHT.toDouble()
+        val t0 = Prefs.roiTop / 100.0
+        val b0 = Prefs.roiBottom / 100.0
+        return com.ninotranslator.core.reading.live.LiveBox(
+            l0 + b.left / w * (r0 - l0), t0 + b.top / h * (b0 - t0),
+            l0 + b.right / w * (r0 - l0), t0 + b.bottom / h * (b0 - t0)
+        )
+    }
+
     private fun isShortUnpunctuated(t: String): Boolean =
         t.split(' ').count { w -> w.count { it.isLetter() } >= 2 } <= 3 && !Regex("[!?.…]$").containsMatchIn(t)
 
@@ -203,10 +219,12 @@ class SubtitleOcr(
             .filter { line ->
                 val t = line.text.trim()
                 TextTools.isDialogLine(t) && !TextTools.isNoiseLine(t) &&
-                    !(isShortUnpunctuated(t) && isDarkTextOnLight(crop, line.boundingBox, scale))
+                    !(isShortUnpunctuated(t) && isDarkTextOnLight(crop, line.boundingBox, scale)) &&
+                    !com.bugra.altyazi.phone.gta.GtaBridge.dropLine(t, frameBox(line.boundingBox, crop, scale))
             }
             .map { it.text.trim() }
-        val joined = TextTools.clean(lines.joinToString(" "))
+        val joined = if (com.bugra.altyazi.phone.gta.GtaBridge.subtitlesSuppressed()) ""
+            else TextTools.clean(lines.joinToString(" "))
 
         if (joined.length < 3) {
             candidate = ""

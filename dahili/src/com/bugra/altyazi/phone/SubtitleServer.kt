@@ -107,6 +107,15 @@ class SubtitleServer(private val context: Context) {
         broadcast(JSONObject().put("type", "clear").toString())
     }
 
+    /** Ekran örtüleri (GTA 6 telefon mesajları / harita kartı). */
+    fun sendScreen(itemsJson: org.json.JSONArray, durationMs: Int) {
+        broadcast(JSONObject().put("type", "screen").put("items", itemsJson).put("durationMs", durationMs).toString())
+    }
+
+    fun sendScreenClear() {
+        broadcast(JSONObject().put("type", "screen-clear").toString())
+    }
+
     fun sendStyle(preview: Boolean) {
         broadcast(styleJson("style").put("preview", preview).toString())
     }
