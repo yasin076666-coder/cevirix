@@ -188,11 +188,13 @@ object CevirixEngine {
     }
 
     fun sendScreen(items: List<Map<String, Any?>>, durationMs: Int) {
+        AppState.screenItems.value = items
         server?.sendScreen(toJsonArray(items), durationMs)
         NinoBridge.screen(items, durationMs)
     }
 
     fun sendScreenClear() {
+        AppState.screenItems.value = emptyList()
         server?.sendScreenClear()
         NinoBridge.screenClear()
     }
@@ -206,6 +208,12 @@ object CevirixEngine {
 
     private fun toJsonArray(items: List<Map<String, Any?>>): org.json.JSONArray =
         org.json.JSONArray().also { a -> items.forEach { a.put(toJson(it)) } }
+
+    /** Sesli okuma denemesi: sorun varsa açıklaması, yoksa null. */
+    fun testSpeech(): String? {
+        val sp = speaker ?: return "Çeviri motoru kapalı. Uygulamayı yeniden aç."
+        return sp.test("Sesli okuma çalışıyor kanka.")
+    }
 
     fun pushStyle(): Boolean {
         val s = server ?: return false

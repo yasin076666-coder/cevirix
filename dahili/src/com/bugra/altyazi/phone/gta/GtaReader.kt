@@ -86,6 +86,10 @@ class GtaReader(
     @Volatile private var lastPhoneReadAt = Long.MIN_VALUE / 2
     @Volatile private var lastMapAt = Long.MIN_VALUE / 2
     @Volatile private var phone: PhoneRect? = null
+    /** Teşhis: telefon bu an görünüyor mu. */
+    val phoneVisible: Boolean get() = phone != null
+    /** Teşhis: telefon panelinde kaç mesaj var. */
+    val panelCount: Int get() = panel.shown.size
     @Volatile private var lastRgb: RgbImage? = null
     @Volatile private var lastBlackout: LiveBox? = null
     @Volatile private var stopped = false

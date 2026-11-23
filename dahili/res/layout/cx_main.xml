@@ -98,6 +98,11 @@
                             android:contentDescription="Oyun görüntüsü"
                             android:scaleType="fitXY" />
 
+                        <FrameLayout
+                            android:id="@+id/liveScreenLayer"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent" />
+
                         <TextView
                             android:id="@+id/liveHint"
                             android:layout_width="match_parent"
@@ -255,6 +260,16 @@
                             android:contentDescription="Altyazıyı yukarı al"
                             android:text="▲" />
                     </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/gtaStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:gravity="center"
+                        android:textColor="@color/cx_cyan"
+                        android:textSize="12sp"
+                        android:visibility="gone" />
 
                     <!-- Bağlantı adımları: hesap → PS5 → TV -->
                     <LinearLayout
@@ -789,6 +804,22 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="Bildirim sesi seçiliyken telefonun medya sesini kısarsan oyunun sesi susar, sadece Türkçe okuma duyulur." />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/testVoiceBtn"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="52dp"
+                            android:layout_marginTop="10dp"
+                            android:text="Sesi dene"
+                            app:cornerRadius="16dp" />
+
+                        <TextView
+                            android:id="@+id/voiceResult"
+                            style="@style/CxAciklama"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
                 <com.google.android.material.card.MaterialCardView

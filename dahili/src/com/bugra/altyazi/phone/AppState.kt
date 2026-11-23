@@ -31,6 +31,12 @@ object AppState {
     /** Arka planda akan oyun görüntüsü (ana ekrandaki küçük pencere için). */
     val liveFrame = MutableStateFlow<Bitmap?>(null)
 
+    /** TV'ye giden oyun içi telefon / harita kartı öğeleri (ana ekrandaki pencerede de çizilir). */
+    val screenItems = MutableStateFlow<List<Map<String, Any?>>>(emptyList())
+
+    /** GTA 6 okuyucusunun durumu (teşhis). */
+    val gtaStatus = MutableStateFlow("")
+
     /** PS5 bağlantısı açık mı? */
     val streaming = MutableStateFlow(false)
 

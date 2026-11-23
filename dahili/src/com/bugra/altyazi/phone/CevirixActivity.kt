@@ -126,6 +126,14 @@ class CevirixActivity : AppCompatActivity() {
                 launch { OfflineTranslator.state.collect { renderOffline(it) } }
                 launch { AppState.liveFrame.collect { renderLive(it) } }
                 launch { AppState.streaming.collect { renderStreaming(it) } }
+                launch { AppState.screenItems.collect { renderScreenItems(it) } }
+                launch {
+                    AppState.gtaStatus.collect { st ->
+                        val t = findViewById<TextView>(R.id.gtaStatus)
+                        t.text = st
+                        t.visibility = if (st.isBlank()) View.GONE else View.VISIBLE
+                    }
+                }
             }
         }
 
@@ -478,6 +486,16 @@ class CevirixActivity : AppCompatActivity() {
             if (fromUser) Prefs.speechRate = value.toInt()
         }
 
+        findViewById<MaterialButton>(R.id.testVoiceBtn).setOnClickListener {
+            if (!Prefs.dubbing) {
+                Prefs.dubbing = true
+                dubSwitch.isChecked = true
+            }
+            val problem = CevirixEngine.testSpeech()
+            findViewById<TextView>(R.id.voiceResult).text = problem
+                ?: "Bir cümle okundu. Duymadıysan telefonun sesini aç. Oyunda her yeni altyazı böyle okunur."
+        }
+
         val toggle = findViewById<MaterialButtonToggleGroup>(R.id.voiceToggle)
         toggle.check(if (Prefs.voiceOnNotification) R.id.btnVoiceNotif else R.id.btnVoiceMedia)
         toggle.addOnButtonCheckedListener { _, id, isChecked ->
@@ -769,6 +787,48 @@ class CevirixActivity : AppCompatActivity() {
         findViewById<Slider>(R.id.ySlider).value = snap(v, 10, 250, 5).toFloat()
         updateTvSample()
         scheduleStylePush()
+    }
+
+    /** Oyun içi telefon / harita kartı öğelerini canlı pencerede TV'deki gibi çizer. */
+    private fun renderScreenItems(items: List<Map<String, Any?>>) {
+        val layer = findViewById<android.widget.FrameLayout>(R.id.liveScreenLayer) ?: return
+        layer.removeAllViews()
+        if (items.isEmpty()) return
+        layer.post {
+            val w = layer.width
+            val h = layer.height
+            if (w <= 0 || h <= 0) return@post
+            fun d(m: Map<*, *>?, k: String) = (m?.get(k) as? Number)?.toDouble() ?: 0.0
+            fun color(v: Any?, fb: Int) = try { (v as? String)?.takeIf { it.isNotBlank() }?.let { android.graphics.Color.parseColor(it) } ?: fb } catch (e: Exception) { fb }
+            for (it in items) {
+                val b = it["box"] as? Map<*, *> ?: continue
+                val l = (d(b, "left") * w).toInt()
+                val t = (d(b, "top") * h).toInt()
+                val r = (d(b, "right") * w).toInt()
+                val bt = (d(b, "bottom") * h).toInt()
+                if (r - l < 2 || bt - t < 2) continue
+                val card = it["card"] == true
+                val plain = it["plain"] == true
+                val fill = color(it["fill"], if (card) android.graphics.Color.parseColor("#1B1B22") else android.graphics.Color.BLACK)
+                val ink = color(it["ink"], android.graphics.Color.WHITE)
+                val alpha = ((it["alpha"] as? Number)?.toDouble() ?: if (card) 1.0 else 0.85).coerceIn(0.0, 1.0)
+                val line = (it["line"] as? Number)?.toDouble() ?: 0.03
+                val v = TextView(this).apply {
+                    text = (it["text"] as? String).orEmpty().replace("⟦", "").replace("⟧", "")
+                    setTextColor(ink)
+                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, (line * h * 0.78).toFloat().coerceIn(6f, 40f))
+                    setPadding(3, 1, 3, 1)
+                    if (!plain) background = android.graphics.drawable.GradientDrawable().apply {
+                        cornerRadius = 6f
+                        setColor(android.graphics.Color.argb((alpha * 255).toInt(), android.graphics.Color.red(fill), android.graphics.Color.green(fill), android.graphics.Color.blue(fill)))
+                    }
+                }
+                val lp = android.widget.FrameLayout.LayoutParams(r - l, bt - t)
+                lp.leftMargin = l
+                lp.topMargin = t
+                layer.addView(v, lp)
+            }
+        }
     }
 
     private fun renderLive(bmp: android.graphics.Bitmap?) {

@@ -74,6 +74,7 @@ object GtaBridge {
         ocr = null
         scope?.cancel()
         scope = null
+        com.bugra.altyazi.phone.AppState.gtaStatus.value = ""
         buf = null
     }
 
@@ -89,6 +90,13 @@ object GtaBridge {
             val b = buf?.takeIf { it.size == w * h } ?: IntArray(w * h).also { buf = it }
             bmp.getPixels(b, 0, w, 0, 0, w, h)
             r.offer(VideoFrame(b, w, h))
+            val st = when {
+                !Prefs.gtaExtras -> ""
+                r.phoneVisible -> "Oyundaki telefon görüldü · ${r.panelCount} mesaj"
+                r.mapState.mapOpen(clock.nowMs()) -> "Harita açık"
+                else -> "Oyundaki telefon aranıyor"
+            }
+            if (com.bugra.altyazi.phone.AppState.gtaStatus.value != st) com.bugra.altyazi.phone.AppState.gtaStatus.value = st
         } catch (e: Throwable) {
         }
     }

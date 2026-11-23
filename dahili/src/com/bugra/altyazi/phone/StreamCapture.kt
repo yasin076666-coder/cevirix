@@ -159,6 +159,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         if (current === this) current = null
         com.bugra.altyazi.phone.gta.GtaBridge.stop()
         CevirixEngine.sendScreenClear()
+        App.markPs5Closed(activity)
         AppState.streaming.value = false
         AppState.liveFrame.value = null
         BgFrames.keepAliveWanted = false

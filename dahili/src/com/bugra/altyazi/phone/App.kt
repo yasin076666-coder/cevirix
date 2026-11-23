@@ -62,6 +62,11 @@ class App : Application() {
                 .putInt("ps5_pid", android.os.Process.myPid()).commit()
         }
 
+        /** PS5 ekranı düzgün kapandı: çökme işaretini kaldır. */
+        fun markPs5Closed(context: Context) {
+            context.getSharedPreferences("hata", Context.MODE_PRIVATE).edit().remove("ps5_pid").apply()
+        }
+
         /** Önceki işlem PS5 ekranında çöktüyse son kayıt satırlarını döndürür. */
         fun takeNativeCrash(context: Context): String? {
             val sp = context.getSharedPreferences("hata", Context.MODE_PRIVATE)
