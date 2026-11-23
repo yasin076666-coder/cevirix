@@ -99,11 +99,19 @@ def oz_test(cikti):
         u.kapat()
         return "tamam"
 
+    def yaz():
+        with open(cikti, "w", encoding="utf-8") as f:
+            json.dump(sonuc, f, ensure_ascii=False, indent=2)
+
+    # Her adımdan önce ve sonra yazılır: program bir adımda çökerse hangisi olduğu görülür
     for ad, is_ in (("ocr", ocr), ("sozluk", sozluk), ("yakalama", yakalama), ("tv", tv), ("web", web),
                     ("ses", ses), ("arayuz", arayuz)):
+        sonuc["son_baslayan"] = ad
+        yaz()
         dene(ad, is_)
-    with open(cikti, "w", encoding="utf-8") as f:
-        json.dump(sonuc, f, ensure_ascii=False, indent=2)
+        yaz()
+    sonuc["son_baslayan"] = "bitti"
+    yaz()
 
 
 if __name__ == "__main__":

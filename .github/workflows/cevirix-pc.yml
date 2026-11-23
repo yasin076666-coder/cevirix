@@ -50,9 +50,10 @@ jobs:
         shell: pwsh
         run: |
           $out = Join-Path $PWD "oz_test.json"
-          Start-Process -FilePath "dist/Cevirix/Cevirix.exe" -ArgumentList "--test", "`"$out`"" -Wait
-          Get-Content $out -Encoding UTF8
-          python ../.github/oz_test_denetle.py $out
+          $p = Start-Process -FilePath "dist/Cevirix/Cevirix.exe" -ArgumentList "--test", "`"$out`"" -Wait -PassThru
+          Write-Host "Cikis kodu: $($p.ExitCode)"
+          if (Test-Path $out) { Get-Content $out -Encoding UTF8 }
+          python ../.github/oz_test_denetle.py $out $p.ExitCode
 
       - name: PS5 baglanti programini ekle (chiaki-ng, Windows)
         shell: pwsh

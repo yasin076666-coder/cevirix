@@ -18,6 +18,9 @@ except Exception as e:
     sys.exit(1)
 
 hatalar = []
+kod = sys.argv[2] if len(sys.argv) > 2 else "?"
+if d.get("son_baslayan") != "bitti":
+    hatalar.append(f"Program '{d.get('son_baslayan')}' adımında çöktü (çıkış kodu {kod})")
 if "gotta" not in (d.get("ocr") or "").lower():
     hatalar.append("OCR yazıyı okuyamadı")
 if (d.get("sozluk") or 0) <= 1000:
