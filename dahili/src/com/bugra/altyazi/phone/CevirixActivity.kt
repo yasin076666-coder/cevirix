@@ -661,11 +661,12 @@ class CevirixActivity : AppCompatActivity() {
     private fun renderNino() {
         val t = findViewById<TextView>(R.id.ninoStatus) ?: return
         val names = NinoBridge.displayNames
-        t.text = when {
-            !Prefs.ninoTv -> ""
+        val tv = when {
             names.isEmpty() -> "Nino TV bekleniyor. TV'de Nino TV'yi aç; telefon ve TV aynı Wi-Fi'de olsun."
             else -> "Bağlı Nino TV: " + names.joinToString(", ")
         }
+        t.text = if (!Prefs.ninoTv) "" else
+            "$tv\n\niPhone, iPad ya da Windows'ta altyazı: tarayıcıda ${WebSubtitlePage.url} adresini aç."
     }
 
     private fun renderMute(btn: MaterialButton) {

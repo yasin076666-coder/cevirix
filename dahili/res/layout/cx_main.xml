@@ -1084,7 +1084,7 @@
                             style="@style/CxKartBaslik"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Nino TV uyumluluğu" />
+                            android:text="Diğer ekranlar" />
 
                         <TextView
                             style="@style/CxAciklama"
@@ -1097,7 +1097,7 @@
                             style="@style/CxAnahtar"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Nino TV'lerine de gönder" />
+                            android:text="Nino TV, iPhone ve bilgisayara da gönder" />
 
                         <TextView
                             android:id="@+id/ninoStatus"

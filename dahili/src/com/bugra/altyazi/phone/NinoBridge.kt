@@ -60,11 +60,13 @@ object NinoBridge {
         pushStyle()
         scope.launch { runCatching { h.started() } }
         startDiscovery(context.applicationContext)
+        WebSubtitlePage.start()
     }
 
     @Synchronized
     fun stop() {
         stopDiscovery()
+        WebSubtitlePage.stop()
         val h = hub ?: return
         hub = null
         watchJob?.cancel()
