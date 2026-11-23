@@ -1,0 +1,12 @@
+Çevirix
+Copyright (C) 2026 Buğra Öztürk
+
+Bu proje aşağıdaki açık kaynak projelerin kodunu kullanır:
+
+- chiaki-ng (PS5 Remote Play) — AGPL-3.0 — https://github.com/streetpea/chiaki-ng
+- Nino Game Translator (Nino Bağlantı Protokolü: com.ninotranslator.core.link, com.ninotranslator.core.json)
+  Copyright (C) 2026 Yunus Demirbağ ve Nino katkıcıları — AGPL-3.0
+  https://github.com/yunusdemirbag/nino-game-translator
+  Nino, Sinan Yorulmaz'ın CouchSubs projesinden ilham almıştır: https://github.com/yorulmazsinan/couchsubs
+
+Bu projenin dahili/ klasöründeki uygulama kodu da AGPL-3.0 lisansıyla yayımlanır.

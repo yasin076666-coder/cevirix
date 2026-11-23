@@ -43,6 +43,14 @@ def copy_tree(src, dst):
 
 # 1) Kaynak kodlar ve kaynaklar
 copy_tree(os.path.join(dahili, "src"), os.path.join(main, "java"))
+
+# Kotlin 2.0 (Nino kodu Kotlin 2 ile yazılmış)
+p = os.path.join(chiaki, "android", "gradle", "libs.versions.toml")
+s = read(p)
+s = replace_once(s, 'kotlin = "1.9.24"', 'kotlin = "2.0.21"', "kotlin sürümü")
+s = replace_once(s, 'ksp = "1.9.24-1.0.20"', 'ksp = "2.0.21-1.0.28"', "ksp sürümü")
+write(p, s)
+print("Kotlin 2.0.21")
 copy_tree(os.path.join(dahili, "res"), os.path.join(main, "res"))
 copy_tree(os.path.join(dahili, "assets"), os.path.join(main, "assets"))
 shutil.copy2(os.path.join(dahili, "strings_tr.xml"), os.path.join(main, "res", "values", "strings.xml"))

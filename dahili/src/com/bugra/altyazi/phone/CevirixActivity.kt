@@ -115,6 +115,7 @@ class CevirixActivity : AppCompatActivity() {
         setupNav()
         setupSteps()
         setupLive()
+        setupNino()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -351,6 +352,7 @@ class CevirixActivity : AppCompatActivity() {
         lastTr.text = s.lastTr
         lastTr.visibility = if (s.lastTr.isBlank()) View.GONE else View.VISIBLE
         renderSteps(s)
+        renderNino()
         lastEn.text = s.lastEn
         lastEn.visibility = if (s.lastEn.isBlank() || !Prefs.tvShowEn || s.lastTr.isBlank()) View.GONE else View.VISIBLE
         rawText.text = if (s.frames == 0L && s.copyOk == 0L && s.copyFail == 0L) {
@@ -643,6 +645,27 @@ class CevirixActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.posDownBtn).setOnClickListener { nudgeY(-10) }
         findViewById<MaterialButton>(R.id.posUpBtn).setOnClickListener { nudgeY(+10) }
         updateTvSample()
+    }
+
+    private fun setupNino() {
+        val sw = findViewById<MaterialSwitch>(R.id.ninoSwitch)
+        sw.isChecked = Prefs.ninoTv
+        sw.setOnCheckedChangeListener { _, checked ->
+            Prefs.ninoTv = checked
+            if (checked) NinoBridge.start(this) else NinoBridge.stop()
+            renderNino()
+        }
+        renderNino()
+    }
+
+    private fun renderNino() {
+        val t = findViewById<TextView>(R.id.ninoStatus) ?: return
+        val names = NinoBridge.displayNames
+        t.text = when {
+            !Prefs.ninoTv -> ""
+            names.isEmpty() -> "Nino TV bekleniyor. TV'de Nino TV'yi aç; telefon ve TV aynı Wi-Fi'de olsun."
+            else -> "Bağlı Nino TV: " + names.joinToString(", ")
+        }
     }
 
     private fun renderMute(btn: MaterialButton) {

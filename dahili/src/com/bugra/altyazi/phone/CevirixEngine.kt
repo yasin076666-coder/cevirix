@@ -16,6 +16,12 @@ object CevirixEngine {
 
     private var users = 0
     private var server: SubtitleServer? = null
+    @Volatile private var ownClients = 0
+    @Volatile private var ninoClients = 0
+
+    private fun publishClients() {
+        AppState.update { it.copy(tvClients = ownClients + ninoClients) }
+    }
     private var speaker: Speaker? = null
     private val translator = Translator().apply { onNotice = { notice(it) } }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -34,11 +40,15 @@ object CevirixEngine {
         if (users == 1) {
             val app = context.applicationContext
             server = SubtitleServer(app).apply {
-                onClientsChanged = { n -> AppState.update { it.copy(tvClients = n) } }
+                onClientsChanged = { n -> ownClients = n; publishClients() }
                 onNotice = { msg -> notice(msg) }
                 start()
             }
             speaker = Speaker(app).apply { onNotice = { msg -> notice(msg) } }
+            if (Prefs.ninoTv) {
+                NinoBridge.onCountChanged = { n -> ninoClients = n; publishClients() }
+                NinoBridge.start(app)
+            }
             if (!Prefs.geminiEnabled || Prefs.geminiKey.isBlank()) OfflineTranslator.download()
         }
         AppState.update {
@@ -52,6 +62,9 @@ object CevirixEngine {
         users--
         if (users == 0) {
             server?.stop()
+            NinoBridge.stop()
+            ownClients = 0
+            ninoClients = 0
             speaker?.shutdown()
             server = null
             speaker = null
@@ -117,6 +130,7 @@ object CevirixEngine {
             lastFinal = final
         }
         server?.sendSubtitle(tr, en, seq)
+        NinoBridge.show(seq, tr, en)
         if (final && Prefs.dubbing) speaker?.speak(tr)
         val ms = SystemClock.elapsedRealtime() - t0
         AppState.update {
@@ -137,18 +151,24 @@ object CevirixEngine {
     private fun clearIfCurrent(seq: Long) {
         val clear: Boolean
         synchronized(emitLock) { clear = seq == lastEmitted }
-        if (clear) server?.sendClear()
+        if (clear) {
+            server?.sendClear()
+            NinoBridge.clear(seq)
+        }
     }
 
     fun sendClear() {
         server?.sendClear()
+        NinoBridge.clear()
     }
 
     fun sendTest(): Boolean {
         val s = server ?: return false
         val tr = "Vice City'ye hoş geldin kanka! Her şey tıkırında."
         val en = "Welcome to Vice City, bro! Everything's running smooth."
-        s.sendSubtitle(tr, en, reqSeq.incrementAndGet())
+        val seq = reqSeq.incrementAndGet()
+        s.sendSubtitle(tr, en, seq)
+        NinoBridge.show(seq, tr, en)
         if (Prefs.dubbing) speaker?.speak(tr)
         AppState.update { it.copy(lastEn = en, lastTr = tr, engine = "Test") }
         return true
@@ -157,6 +177,7 @@ object CevirixEngine {
     fun pushStyle(): Boolean {
         val s = server ?: return false
         s.sendStyle(preview = true)
+        NinoBridge.pushStyle()
         return true
     }
 }

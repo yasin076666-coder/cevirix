@@ -92,6 +92,11 @@ object Prefs {
         get() = sp.getBoolean("ps_muted", true)
         set(v) = sp.edit().putBoolean("ps_muted", v).apply()
 
+    /** Nino TV uygulamalarına da gönder (Samsung, LG, Android TV). */
+    var ninoTv: Boolean
+        get() = sp.getBoolean("nino_tv", true)
+        set(v) = sp.edit().putBoolean("nino_tv", v).apply()
+
     var tvShowEn: Boolean
         get() = sp.getBoolean("tv_en", false)
         set(v) = sp.edit().putBoolean("tv_en", v).apply()
