@@ -52,7 +52,7 @@ def oz_test(cikti):
                 except Exception:
                     time.sleep(0.25)
             else:
-                raise RuntimeError("TV sunucusuna bağlanılamadı")
+                raise RuntimeError(f"TV sunucusuna bağlanılamadı. Sunucu hatası: {t.son_hata}")
             with ws:
                 merhaba = json.loads(ws.recv(timeout=5))
                 assert merhaba["type"] == "hello", merhaba

@@ -35,6 +35,8 @@ class TvSunucusu:
         self.bildir = bildir            # bildir(tur, deger): arayüze olay
         self._istemciler = set()
         self._dongu = None
+        self._dur_olayi = None
+        self.son_hata = None
         self._calisiyor = False
         self._son_sub = None
         self._son_sub_zaman = 0.0
@@ -52,9 +54,12 @@ class TvSunucusu:
 
     def durdur(self):
         self._calisiyor = False
-        d = self._dongu
-        if d:
-            d.call_soon_threadsafe(d.stop)
+        d, olay = self._dongu, self._dur_olayi
+        if d and olay:
+            try:
+                d.call_soon_threadsafe(olay.set)
+            except RuntimeError:
+                pass
         self._duyuruyu_kaldir()
         self._istemciler = set()
         self.bildir("tv", 0)
@@ -63,29 +68,36 @@ class TvSunucusu:
     def istemci_sayisi(self):
         return len(self._istemciler)
 
-    def _calistir(self):
+    async def _sunucu(self):
         import websockets
+        self._dur_olayi = asyncio.Event()
+        if not self._calisiyor:
+            return
+        async with websockets.serve(self._baglanti, "0.0.0.0", PORT, ping_interval=8, ping_timeout=8):
+            self.son_hata = None
+            self.bildir("durum_tv", f"TV bağlantısı bekleniyor ({self.ip})")
+            await self._dur_olayi.wait()
+
+    def _calistir(self):
         while self._calisiyor:
             dongu = asyncio.new_event_loop()
             self._dongu = dongu
             asyncio.set_event_loop(dongu)
             try:
-                sunucu = dongu.run_until_complete(
-                    websockets.serve(self._baglanti, "0.0.0.0", PORT, ping_interval=8, ping_timeout=8))
-                self.bildir("durum_tv", f"TV bağlantısı bekleniyor ({self.ip})")
-                dongu.run_forever()
-                sunucu.close()
-                dongu.run_until_complete(sunucu.wait_closed())
+                dongu.run_until_complete(self._sunucu())
             except OSError as e:
+                self.son_hata = repr(e)
                 self.bildir("durum_tv", f"TV portu ({PORT}) açılamadı: {e.strerror or e}. Yeniden deneniyor…")
             except Exception as e:
+                self.son_hata = repr(e)
                 self.bildir("durum_tv", f"TV sunucusu hatası: {e}. Yeniden deneniyor…")
             finally:
+                self._dongu = None
+                self._dur_olayi = None
                 try:
                     dongu.close()
                 except Exception:
                     pass
-                self._dongu = None
             if self._calisiyor:
                 time.sleep(2)
 
