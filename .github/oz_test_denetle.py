@@ -1,8 +1,22 @@
-"""Çevirix PC öz test sonucunu denetler (cevirix-pc.yml çağırır)."""
+"""Çevirix PC öz test sonucunu denetler (cevirix-pc.yml çağırır).
+
+Hatalar GitHub "annotation" olarak da yazılır; böylece günlüğe giriş yapmadan da görülebilir.
+"""
 import json
 import sys
 
-d = json.load(open(sys.argv[1], encoding="utf-8"))
+
+def notu_yaz(baslik, metin):
+    metin = metin.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+    print(f"::error title={baslik}::{metin[:3500]}")
+
+
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception as e:
+    notu_yaz("oz_test.json okunamadi", f"Program test sonucunu yazmadı: {e}")
+    sys.exit(1)
+
 hatalar = []
 if "gotta" not in (d.get("ocr") or "").lower():
     hatalar.append("OCR yazıyı okuyamadı")
@@ -19,7 +33,10 @@ if "ses_hata" in d or str(ses.get("sorun") or "").startswith("Windows ses motoru
 for k, v in d.items():
     if k.endswith("_hata"):
         print(f"--- {k} ---\n{v}")
+        notu_yaz(k, str(v)[-3000:])
+ozet = {k: v for k, v in d.items() if not k.endswith("_hata")}
+print(f"::notice title=Oz test sonucu::{json.dumps(ozet, ensure_ascii=False)[:3000]}")
 if hatalar:
-    print("OZ TEST BASARISIZ: " + "; ".join(hatalar))
+    notu_yaz("OZ TEST BASARISIZ", "; ".join(hatalar))
     sys.exit(1)
 print("OZ TEST TAMAM")
