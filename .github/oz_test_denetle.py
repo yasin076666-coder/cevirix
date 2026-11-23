@@ -5,6 +5,12 @@ Hatalar GitHub "annotation" olarak da yazılır; böylece günlüğe giriş yapm
 import json
 import sys
 
+# Windows konsolu varsayılan olarak cp1252: Türkçe harfler yazılamaz
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 
 def notu_yaz(baslik, metin):
     metin = metin.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
