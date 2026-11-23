@@ -36,6 +36,7 @@ object CevirixEngine {
     @Synchronized
     fun acquire(context: Context, source: String) {
         Prefs.init(context)
+        HistoryStore.init(context.applicationContext)
         users++
         if (users == 1) {
             val app = context.applicationContext
@@ -63,6 +64,7 @@ object CevirixEngine {
         if (users == 0) {
             server?.stop()
             NinoBridge.stop()
+            HistoryStore.flush()
             ownClients = 0
             ninoClients = 0
             speaker?.shutdown()
@@ -131,6 +133,7 @@ object CevirixEngine {
         }
         server?.sendSubtitle(tr, en, seq)
         NinoBridge.show(seq, tr, en)
+        if (final) HistoryStore.add(en, tr, engine)
         if (final && Prefs.dubbing) speaker?.speak(tr)
         val ms = SystemClock.elapsedRealtime() - t0
         AppState.update {

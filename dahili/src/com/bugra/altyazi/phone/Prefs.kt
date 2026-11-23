@@ -102,6 +102,11 @@ object Prefs {
         get() = sp.getBoolean("gta_extras", true)
         set(v) = sp.edit().putBoolean("gta_extras", v).apply()
 
+    /** Terim sözlüğü (satır satır: "Ad" ya da "kelime = karşılık"). */
+    var glossary: String
+        get() = sp.getString("glossary", null) ?: Glossary.DEFAULT
+        set(v) = sp.edit().putString("glossary", v).apply()
+
     var tvShowEn: Boolean
         get() = sp.getBoolean("tv_en", false)
         set(v) = sp.edit().putBoolean("tv_en", v).apply()

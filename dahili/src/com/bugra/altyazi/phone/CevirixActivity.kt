@@ -117,6 +117,7 @@ class CevirixActivity : AppCompatActivity() {
         setupLive()
         setupNino()
         setupGta()
+        setupExtras()
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -227,6 +228,7 @@ class CevirixActivity : AppCompatActivity() {
         val nav = findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(R.id.bottomNav)
         nav.setOnItemSelectedListener { item ->
             showPage(item.itemId)
+            if (item.itemId == R.id.navTranslate) renderHistoryInfo()
             true
         }
         nav.setOnItemReselectedListener { item ->
@@ -646,6 +648,68 @@ class CevirixActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.posDownBtn).setOnClickListener { nudgeY(-10) }
         findViewById<MaterialButton>(R.id.posUpBtn).setOnClickListener { nudgeY(+10) }
         updateTvSample()
+    }
+
+    private fun setupExtras() {
+        val input = findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.glossaryInput)
+        input.setText(Prefs.glossary)
+        findViewById<MaterialButton>(R.id.glossarySaveBtn).setOnClickListener {
+            Prefs.glossary = input.text?.toString().orEmpty()
+            toast("Terim sözlüğü kaydedildi (${Glossary.terms().size} terim)")
+        }
+        findViewById<MaterialButton>(R.id.glossaryResetBtn).setOnClickListener {
+            input.setText(Glossary.DEFAULT)
+            Prefs.glossary = Glossary.DEFAULT
+            toast("Varsayılan terimler yüklendi")
+        }
+        HistoryStore.init(applicationContext)
+        renderHistoryInfo()
+        findViewById<MaterialButton>(R.id.historyBtn).setOnClickListener { showHistory() }
+        findViewById<MaterialButton>(R.id.phoneSubBtn).setOnClickListener {
+            startActivity(Intent(this, PhoneSubtitleActivity::class.java))
+        }
+    }
+
+    private fun renderHistoryInfo() {
+        val n = HistoryStore.list().size
+        findViewById<TextView>(R.id.historyInfo)?.text =
+            if (n == 0) "Henüz çeviri yok. Oyunda çevrilen satırlar burada birikir (son 300)."
+            else "$n satır kayıtlı. Kaçırdığın bir repliğe geri dönüp okuyabilirsin."
+    }
+
+    private fun showHistory() {
+        val items = HistoryStore.list()
+        if (items.isEmpty()) { toast("Geçmiş boş"); return }
+        val fmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr"))
+        val rows = items.map { e -> "${e.tr}\n${e.en}  ·  ${fmt.format(java.util.Date(e.at))}" }
+        val adapter = object : android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, rows) {
+            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val v = super.getView(position, convertView, parent) as TextView
+                v.textSize = 14f
+                v.setTextColor(ContextCompat.getColor(context, R.color.cx_text))
+                v.setPadding(8, 14, 8, 14)
+                return v
+            }
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Çeviri geçmişi")
+            .setAdapter(adapter) { _, which ->
+                val e = items[which]
+                val cm = getSystemService(android.content.ClipboardManager::class.java)
+                cm?.setPrimaryClip(android.content.ClipData.newPlainText("Çevirix", "${e.tr}\n${e.en}"))
+                toast("Kopyalandı")
+            }
+            .setPositiveButton("Kapat", null)
+            .setNeutralButton("Temizle") { _, _ ->
+                HistoryStore.clear()
+                renderHistoryInfo()
+            }
+            .show()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        HistoryStore.flush()
     }
 
     private fun setupGta() {

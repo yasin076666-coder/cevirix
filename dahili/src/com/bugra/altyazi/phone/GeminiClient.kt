@@ -72,6 +72,7 @@ Kurallar:
                 }
                 append('\n')
             }
+            Glossary.noteFor(english)?.let { append(it).append("\n\n") }
             append("Şimdi bu altyazıyı çevir:\n").append(english)
         }
 

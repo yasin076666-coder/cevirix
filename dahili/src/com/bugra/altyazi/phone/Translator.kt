@@ -42,7 +42,7 @@ class Translator {
             return null
         }
         return OfflineSlang.translate(en) { text ->
-            OfflineTranslator.translate(text)?.takeIf { it.isNotBlank() }
+            Glossary.translateProtected(text) { t -> OfflineTranslator.translate(t)?.takeIf { it.isNotBlank() } }
         }?.takeIf { it.isNotBlank() }
     }
 

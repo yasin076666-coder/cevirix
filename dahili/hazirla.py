@@ -172,6 +172,12 @@ s = replace_once(
     '            android:name="com.bugra.altyazi.phone.PsnLoginActivity"\n'
     '            android:exported="false"\n'
     '            android:theme="@style/CxTema" />\n\n'
+    "        <activity\n"
+    '            android:name="com.bugra.altyazi.phone.PhoneSubtitleActivity"\n'
+    '            android:exported="false"\n'
+    '            android:configChanges="orientation|screenSize|keyboardHidden"\n'
+    '            android:screenOrientation="sensorLandscape"\n'
+    '            android:theme="@style/CxTema" />\n\n'
     "        <service\n"
     '            android:name="com.bugra.altyazi.phone.CaptureService"\n'
     '            android:exported="false"\n'
