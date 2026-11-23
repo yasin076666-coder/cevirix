@@ -6,6 +6,13 @@ import urllib.request
 
 VARSAYILAN_MODEL = "gemini-3.5-flash-lite"
 YEDEK_MODELLER = ["gemini-3.5-flash-lite", "gemini-3-flash-lite", "gemini-2.5-flash-lite", "gemini-2.5-flash"]
+# Telefon sürümündeki model düğmeleri
+MODEL_SECENEKLERI = [
+    ("En hızlı (3.5 Flash-Lite)", "gemini-3.5-flash-lite"),
+    ("En kaliteli (3.6 Flash)", "gemini-3.6-flash"),
+    ("Yedek (2.5 Flash-Lite)", "gemini-2.5-flash-lite"),
+]
+DENEME_CUMLESI = "Yo bro, the cops are right behind us, we gotta bounce!"
 
 SISTEM = """Sen GTA 6 için çalışan, sokak kültürünü çok iyi bilen profesyonel bir Türkçe oyun yerelleştirme uzmanısın.
 Görevin: Ekrandan yazı tanıma (OCR) ile okunmuş İngilizce oyun altyazısını, karakterlerin ağzından çıkmış gibi doğal ve akıcı Türkçe sokak diliyle çevirmek.
@@ -45,6 +52,27 @@ class GeminiHatasi(Exception):
     def __init__(self, kod, mesaj):
         super().__init__(mesaj)
         self.kod = kod
+
+    @property
+    def anahtar_sorunu(self):
+        return self.kod in (401, 403) or "api key" in str(self).lower()
+
+
+def acikla(e, model=""):
+    """Hata için kısa Türkçe açıklama (telefon sürümüyle aynı)."""
+    if isinstance(e, GeminiHatasi):
+        if e.kod == 429:
+            return "Gemini kotası doldu"
+        if e.anahtar_sorunu:
+            return "Gemini anahtarı geçersiz"
+        if e.kod == 404:
+            return f"Model bulunamadı ({model})"
+        if e.kod >= 500:
+            return "Gemini sunucusu yanıt vermedi"
+        if e.kod == 0:
+            return "İnternet bağlantısı yok veya yavaş"
+        return f"Gemini hatası: {e}"
+    return f"Gemini hatası: {e}"
 
 
 def terim_notu(english, terimler_metni):
@@ -135,7 +163,7 @@ class Gemini:
         root = json.loads(raw)
         cands = root.get("candidates") or []
         if not cands:
-            raise GeminiHatasi(0, "Gemini boş yanıt verdi")
+            raise GeminiHatasi(-1, "Gemini boş yanıt verdi")
         parts = (cands[0].get("content") or {}).get("parts") or []
         text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
         return text.strip().strip('"“”«»').strip()

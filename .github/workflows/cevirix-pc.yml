@@ -6,6 +6,7 @@ on:
       - "pc/**"
       - "dahili/assets/sokak_sozlugu.json"
       - ".github/workflows/cevirix-pc.yml"
+      - ".github/oz_test_denetle.py"
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,7 @@ jobs:
   derle:
     runs-on: windows-latest
     env:
-      CEVIRIX_SURUM: "1.0.${{ github.run_number }}"
+      CEVIRIX_SURUM: "2.0.${{ github.run_number }}"
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +30,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r pc/requirements.txt pyinstaller pillow
 
+      - name: Soz dizimi denetimi
+        working-directory: pc
+        run: python -m compileall -q Cevirix.py cevirix
+
       - name: Programi derle (PyInstaller)
         working-directory: pc
         shell: pwsh
@@ -36,16 +41,18 @@ jobs:
           Copy-Item ../dahili/assets/sokak_sozlugu.json veri/
           pyinstaller --noconfirm --clean --windowed --name Cevirix --icon veri/cevirix.ico `
             --add-data "veri/sokak_sozlugu.json;." --add-data "veri/logo.png;." --add-data "veri/cevirix.ico;." `
-            --collect-all rapidocr_onnxruntime --collect-all onnxruntime Cevirix.py
+            --collect-all rapidocr_onnxruntime --collect-all onnxruntime `
+            --collect-all zeroconf --collect-submodules websockets `
+            --hidden-import win32timezone --hidden-import pythoncom Cevirix.py
 
-      - name: Oz test (OCR + sozluk paketin icinde calisiyor mu)
+      - name: Oz test (OCR, sozluk, TV sunucusu, tarayici sayfasi, ses, arayuz paketin icinde calisiyor mu)
         working-directory: pc
         shell: pwsh
         run: |
           $out = Join-Path $PWD "oz_test.json"
           Start-Process -FilePath "dist/Cevirix/Cevirix.exe" -ArgumentList "--test", "`"$out`"" -Wait
           Get-Content $out -Encoding UTF8
-          python -c "import json,sys; d=json.load(open(sys.argv[1],encoding='utf-8')); assert 'gotta' in d.get('ocr','').lower(), d; assert d.get('sozluk',0) > 1000, d; print('OZ TEST TAMAM')" $out
+          python ../.github/oz_test_denetle.py $out
 
       - name: PS5 baglanti programini ekle (chiaki-ng, Windows)
         shell: pwsh
