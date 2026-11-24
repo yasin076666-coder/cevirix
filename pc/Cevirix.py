@@ -73,6 +73,41 @@ def oz_test(cikti):
         assert (d1, d2) == (BAGLI, KAPANDI), (d1, d2)
         return "tamam" if kirmizi > 200 else f"arkadaki pencere okunamadı (kırmızı={kirmizi:.0f})"
 
+    def gta():
+        # Yapay bir oyun karesi: koyu sahnede beyaz ekranlı telefon, üstte ad, altında üç mesaj
+        import cv2
+        import numpy as np
+        from cevirix import gta as g
+        from cevirix.okuyucu import Okuyucu
+        kare = np.full((720, 1280, 3), 40, dtype=np.uint8)
+        cv2.rectangle(kare, (700, 120), (960, 600), (245, 245, 245), -1)
+        yaz = lambda t, x, y, s=0.62: cv2.putText(kare, t, (x, y), cv2.FONT_HERSHEY_SIMPLEX, s, (20, 20, 20), 2,  # noqa: E731
+                                                  cv2.LINE_AA)
+        yaz("Lucia", 795, 160, 0.8)
+        yaz("Where are you", 712, 240)
+        yaz("right now?", 712, 265)
+        yaz("The cops are", 712, 340)
+        yaz("all over town.", 712, 365)
+        yaz("Meet me at the", 712, 440)
+        yaz("docks tonight.", 712, 465)
+        gelen = []
+        o = g.GtaOkuyucu(Okuyucu(), lambda t: "TR " + t, lambda l: gelen.append(l),
+                         os.path.join(tempfile.mkdtemp(), "m.json"))
+        img = g.RgbResim.kareden(kare)
+        tel = g.TelefonBulucu().bul(img)
+        sonuc["gta_telefon"] = [round(v, 3) for v in tel["box"]] if tel else None
+        assert tel, "telefon bulunamadı"
+        for _ in range(3):
+            o._son_bulma = o._son_okuma = -10 ** 12
+            o._son_harita = 10 ** 15        # harita kartı bu denemede okunmasın
+            o.kare(kare)
+        son = gelen[-1] if gelen else []
+        balon = [x["text"] for x in son if x.get("side")]
+        sonuc["gta_balonlar"] = balon
+        sonuc["gta_kart"] = g.kart_bul([("MAKE MONEY", (0.62, 0.40, 0.80, 0.43)),
+                                        ("Rob the store on the corner of Ocean Drive.", (0.62, 0.44, 0.95, 0.47))])
+        return "tamam" if len(balon) >= 2 else f"balon yok: {son}"
+
     def tv():
         from websockets.sync.client import connect
         from cevirix import ayarlar
@@ -139,7 +174,8 @@ def oz_test(cikti):
             json.dump(sonuc, f, ensure_ascii=False, indent=2)
 
     # Her adımdan önce ve sonra yazılır: program bir adımda çökerse hangisi olduğu görülür
-    for ad, is_ in (("ocr", ocr), ("sozluk", sozluk), ("yakalama", yakalama), ("pencere", pencere),
+    import tempfile
+    for ad, is_ in (("ocr", ocr), ("sozluk", sozluk), ("yakalama", yakalama), ("pencere", pencere), ("gta", gta),
                     ("tv", tv), ("web", web),
                     ("ses", ses), ("arayuz", arayuz)):
         sonuc["son_baslayan"] = ad

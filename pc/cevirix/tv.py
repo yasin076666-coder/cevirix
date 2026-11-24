@@ -108,6 +108,8 @@ class TvSunucusu:
             await ws.send(json.dumps(self._stil("hello"), ensure_ascii=False))
             if self._son_sub and time.time() - self._son_sub_zaman < YENIDEN_GONDER_SN:
                 await ws.send(self._son_sub)
+            if getattr(self, "_ekran", None):
+                await ws.send(self._ekran_mesaji())
             async for mesaj in ws:
                 if mesaj == "ping":
                     await ws.send('{"type":"pong"}')
@@ -181,6 +183,32 @@ class TvSunucusu:
     def temizle(self):
         self._son_sub = None
         self._yayinla('{"type":"clear"}')
+
+    # ------------------------------------------------------------ ekran öğeleri (GTA telefon balonları, harita kartı)
+    EKRAN_SURE_MS = 120000
+    EKRAN_TAZELE_SN = 60
+
+    def _ekran_mesaji(self):
+        return json.dumps({"type": "screen", "items": self._ekran, "durationMs": self.EKRAN_SURE_MS},
+                          ensure_ascii=False)
+
+    def ekran(self, ogeler):
+        """Öğeler değişince hemen gider; boşalınca TV'deki katman silinir."""
+        onceki = getattr(self, "_ekran", [])
+        self._ekran = list(ogeler)
+        if not self.ayar.get("tv_gonder", True):
+            return
+        if self._ekran:
+            self._ekran_zaman = time.time()
+            self._yayinla(self._ekran_mesaji())
+        elif onceki:
+            self._yayinla('{"type":"screen-clear"}')
+
+    def ekran_tazele(self):
+        """Değişmeden duran öğeler TV'deki süre dolmasın diye 60 sn'de bir yeniden gönderilir."""
+        if getattr(self, "_ekran", None) and time.time() - getattr(self, "_ekran_zaman", 0) >= self.EKRAN_TAZELE_SN:
+            self._ekran_zaman = time.time()
+            self._yayinla(self._ekran_mesaji())
 
     def stil_gonder(self, ornek=True):
         """Görünüm ayarlarını TV'ye yollar; ornek=True ise TV örnek bir altyazı gösterir."""

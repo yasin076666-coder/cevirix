@@ -14,6 +14,7 @@ VARSAYILAN = {
     "gemini_model": VARSAYILAN_MODEL,
     "aninda_ceviri": True,      # önce hızlı çeviri, Gemini gelince yerine geçer
     "terimler": VARSAYILAN_TERIMLER,
+    "gta_ekstra": True,         # GTA 6: oyun içi telefon mesajları ve harita kartı
     # Sesli okuma (canlı dublaj)
     "sesli_okuma": False,
     "konusma_hizi": 110,        # yüzde, 100 = normal

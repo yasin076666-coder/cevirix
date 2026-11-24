@@ -246,6 +246,86 @@ class Katman:
         return self.gizli
 
 
+# ================================================================ GTA ekran öğeleri (telefon balonları, harita kartı)
+def ogeleri_ciz(tuval, ogeler, x0, y0, w, h, en_kucuk=6, en_buyuk=60):
+    """Çevirix TV'deki 'screen' öğelerini bir tuvale çizer (TV ile aynı görünüm)."""
+    tuval.delete("oge")
+    if w < 10 or h < 10:
+        return
+    for o in ogeler:
+        b = o.get("box") or {}
+        l = x0 + b.get("left", 0) * w
+        t = y0 + b.get("top", 0) * h
+        r = x0 + b.get("right", 0) * w
+        bt = y0 + b.get("bottom", 0) * h
+        if r - l < 2 or bt - t < 2:
+            continue
+        kart = bool(o.get("card"))
+        yalin = bool(o.get("plain"))
+        dolgu = o.get("fill") or ("#1b1b22" if kart else "#000000")
+        murekkep = o.get("ink") or "#ffffff"
+        alfa = float(o.get("alpha", 1.0 if kart else 0.85))
+        if not yalin:
+            # Tk'de yarı saydamlık yok: koyu zemin (backdrop) noktalı desenle yarı geçirgen çizilir
+            ek = {"stipple": "gray50"} if alfa < 0.8 else {}
+            tuval.create_rectangle(l, t, r, bt, fill=dolgu, outline="", tags="oge", **ek)
+        metin = (o.get("text") or "").replace("⟦", "").replace("⟧", "")
+        if not metin:
+            continue
+        satir = float(o.get("line", 0.03))
+        px = int(min(max(satir * h * 0.78, en_kucuk), en_buyuk))
+        tuval.create_text(l + 4, t + 2, text=metin, anchor="nw", width=max(10, r - l - 8), fill=murekkep,
+                          font=("Segoe UI Semibold", -px), tags="oge")
+
+
+class EkranKatmani:
+    """Telefon balonları ve harita kartının Türkçesi: oyun penceresinin üstünde, tıklamayı geçiren tuval."""
+
+    def __init__(self, kok, ayar, motor):
+        self.ayar, self.motor = ayar, motor
+        self.pen = tk.Toplevel(kok)
+        self.pen.overrideredirect(True)
+        self.pen.attributes("-topmost", True)
+        self.pen.configure(bg=ANAHTAR_RENK)
+        self.pen.attributes("-transparentcolor", ANAHTAR_RENK)
+        self.tuval = tk.Canvas(self.pen, bg=ANAHTAR_RENK, highlightthickness=0, bd=0)
+        self.tuval.pack(fill="both", expand=True)
+        self.pen.withdraw()
+        self.ogeler = []
+        self.bastirildi = False
+        self._hazir = False
+        self._geo = None
+
+    def goster(self, ogeler):
+        self.ogeler = list(ogeler)
+        self.yenile()
+
+    def bastir(self, evet):
+        self.bastirildi = evet
+        self.yenile()
+
+    def yenile(self):
+        if not self.ogeler or self.bastirildi or not self.ayar.get("pc_katman", True) \
+                or not self.ayar.get("gta_ekstra", True):
+            self.pen.withdraw()
+            return
+        (x, y, w, h), bulundu = self.motor.hedef()
+        if not bulundu:
+            self.pen.withdraw()
+            return
+        geo = f"{w}x{h}+{x}+{y}"
+        if geo != self._geo:
+            self._geo = geo
+            self.pen.geometry(geo)
+        self.pen.deiconify()
+        if not self._hazir:
+            self.pen.update_idletasks()
+            ekran.katman_yap(ekran.tk_hwnd(self.pen))
+            self._hazir = True
+        ogeleri_ciz(self.tuval, self.ogeler, 0, 0, w, h, en_kucuk=9, en_buyuk=60)
+        ekran.en_ustte(ekran.tk_hwnd(self.pen))
+
+
 # ================================================================ ayrı altyazı penceresi
 class AltyaziPenceresi:
     """İkinci ekran ya da yan pencere için büyük altyazı (telefondaki tam ekran altyazının karşılığı)."""
@@ -398,6 +478,7 @@ class Uygulama:
         self._stiller()
         self._arayuz()
         self.katman = Katman(self.kok, self.ayar, self.motor)
+        self.ekran_katmani = EkranKatmani(self.kok, self.ayar, self.motor)
         ekran.KisayolTuslari(lambda kid: self.olaylar.put(("tus", kid)))
         if self.ayar.get("tv_gonder", True):
             self.tv.baslat()
@@ -603,11 +684,12 @@ class Uygulama:
         tk.Frame(k, bg=KART, height=6).pack()
 
         k = self._kart(s, "OYUN")
-        self.onizleme_etiket = tk.Label(k, bg="#050C20", fg=SOLUK, cursor="hand2", font=("Segoe UI", 10),
-                                        text="PS5'e bağlanınca oyun görüntüsü burada da görünür.\n"
-                                             "Tıklayınca oyun penceresine geçilir.", height=8)
-        self.onizleme_etiket.pack(fill="x", padx=14, pady=(2, 6))
-        self.onizleme_etiket.bind("<Button-1>", lambda e: self.oyuna_gec())
+        self.onizleme_tuval = tk.Canvas(k, bg="#050C20", highlightthickness=0, cursor="hand2",
+                                        height=int(160 * self.o))
+        self.onizleme_tuval.pack(fill="x", padx=14, pady=(2, 6))
+        self.onizleme_tuval.bind("<Button-1>", lambda e: self.oyuna_gec())
+        self.onizleme_tuval.bind("<Configure>", lambda e: self._onizleme_ipucu())
+        self._onizleme_resmi = None
         d = tk.Frame(k, bg=KART)
         d.pack(fill="x", padx=14, pady=(0, 10))
         self._ikincil(d, "Oyuna geç", self.oyuna_gec).pack(side="left")
@@ -713,6 +795,13 @@ class Uygulama:
         d.pack(fill="x", padx=14, pady=8)
         self._dugme(d, "Sesi dene", self.sesi_dene).pack(side="left")
         self.ses_sonuc = self._aciklama(k, "")
+
+        k = self._kart(s, "GTA 6 EKSTRALARI")
+        self._anahtar_satiri(k, "Oyun içi telefon mesajları ve harita kartı", "gta_ekstra",
+                             "Oyundaki telefonda açılan sohbet, telefonun yanında Türkçe balonlarla; harita / görev "
+                             "kartının Türkçesi kartın altında görünür. Bu ekranda, canlı pencerede ve TV'de.",
+                             self._gta_degisti)
+        tk.Frame(k, bg=KART, height=6).pack()
 
         k = self._kart(s, "TERİM SÖZLÜĞÜ",
                        "Her satıra bir ad: çevrilmeden aynen kalır.  Sabit karşılık için:  "
@@ -885,6 +974,13 @@ class Uygulama:
         self._kaydet()
         self.katman_yenile()
 
+    def _gta_degisti(self):
+        k = getattr(self, "ekran_katmani", None)
+        if k:
+            k.yenile()
+        if not self.ayar.get("gta_ekstra", True):
+            self.tv.ekran([])
+
     def _tv_degisti(self):
         if self.ayar.get("tv_gonder"):
             self.tv.baslat()
@@ -1008,20 +1104,39 @@ class Uygulama:
                 neden = f": {self.baglanti.neden}" if self.baglanti.neden else ""
                 self._durum(f"PS5 bağlantısı kapandı{neden}", SARI)
 
+    def _onizleme_ipucu(self):
+        if self._onizleme_resmi is not None:
+            return
+        c = self.onizleme_tuval
+        c.delete("all")
+        c.create_text(c.winfo_width() / 2, c.winfo_height() / 2, fill=SOLUK, font=("Segoe UI", 10),
+                      justify="center", text="PS5'e bağlanınca oyun görüntüsü burada da görünür.\n"
+                                             "Tıklayınca oyun penceresine geçilir.")
+
     def _onizleme_guncelle(self):
         if not self.sayfalar["oyna"].winfo_ismapped() or self.kok.state() == "iconic":
             return
-        kare = self.motor.onizleme_karesi(int(520 * self.o))
+        c = self.onizleme_tuval
+        genislik = max(200, c.winfo_width())
+        kare = self.motor.onizleme_karesi(genislik)
         if kare is None:
             if self._onizleme_resmi is not None:
                 self._onizleme_resmi = None
-                self.onizleme_etiket.configure(image="", height=8)
+                c.configure(height=int(160 * self.o))
+                self._onizleme_ipucu()
             return
         import numpy as np
         h, w = kare.shape[:2]
         ppm = f"P6 {w} {h} 255\n".encode("ascii") + np.ascontiguousarray(kare).tobytes()
         self._onizleme_resmi = tk.PhotoImage(data=ppm, format="PPM")
-        self.onizleme_etiket.configure(image=self._onizleme_resmi, height=h)
+        x0 = max(0, (c.winfo_width() - w) // 2)
+        if int(c.cget("height")) != h:
+            c.configure(height=h)
+        c.delete("all")
+        c.create_image(x0, 0, image=self._onizleme_resmi, anchor="nw")
+        # Telefon balonları ve harita kartı canlı pencerede de TV'deki gibi
+        if self.ayar.get("gta_ekstra", True) and self.motor.ekran_ogeleri:
+            ogeleri_ciz(c, self.motor.ekran_ogeleri, x0, 0, w, h, en_kucuk=6, en_buyuk=30)
 
     def chiaki_sec(self):
         yol = filedialog.askopenfilename(title="chiaki.exe seç", filetypes=[("Program", "*.exe")])
@@ -1283,6 +1398,8 @@ class Uygulama:
                     self.cip_sure.pack(side="left")
                     if self.altyazi_penceresi:
                         self.altyazi_penceresi.goster(tr, en)
+                elif tur == "ekran":
+                    self.ekran_katmani.goster(o[1])
                 elif tur == "temizle":
                     self.katman.temizle()
                     if self.altyazi_penceresi:
@@ -1348,6 +1465,10 @@ class Uygulama:
             if on != self._on_planda:
                 self._on_planda = on
                 self.katman.bastir(on)
+                self.ekran_katmani.bastir(on)
+            elif self.ekran_katmani.ogeler:
+                self.ekran_katmani.yenile()   # oyun penceresi taşınırsa balonlar da gelsin
+            self.tv.ekran_tazele()
             self._onizleme_guncelle()
         except Exception:
             pass
@@ -1379,10 +1500,11 @@ class Uygulama:
             elif not self.ayar.get("web_sayfa"):
                 self.web_durum.configure(text="Tarayıcı sayfası kapalı.", fg=SOLUK)
             t = self.motor.teshis
-            if t["kare"]:
+            if t["kare"] or t.get("gta"):
+                gta = f"\nGTA 6: {t['gta']}" if t.get("gta") else ""
                 self.teshis.configure(
                     text=f"Kaynak: {t['kaynak'] or '-'}  ·  {t['kare']} kare  ·  {t['okuma']} kez okundu\n"
-                         f"Son okunan yazı: {t['ham'] or '(henüz yazı bulunamadı)'}")
+                         f"Son okunan yazı: {t['ham'] or '(henüz yazı bulunamadı)'}{gta}")
         except Exception:
             pass
         self.kok.after(500, self._yenile)

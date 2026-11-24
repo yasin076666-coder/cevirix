@@ -41,6 +41,8 @@ class Motor:
         self._pencere_calisiyor = set()
         self.chiaki_acik = False        # arayüz her yarım saniyede günceller
         self.ps5_bagli = False
+        self.gta = None                 # GTA 6 telefon / harita kartı okuyucu
+        self.ekran_ogeleri = []         # telefon balonları ve harita kartı (TV "screen" biçimi)
         self._havuz = concurrent.futures.ThreadPoolExecutor(max_workers=6)
         self._kilit = threading.Lock()
         self._sira = 0
@@ -65,11 +67,14 @@ class Motor:
         self.calisiyor = True
         self._kusak += 1
         threading.Thread(target=self._okuma_dongusu, args=(self._kusak,), daemon=True).start()
+        threading.Thread(target=self._gta_dongusu, args=(self._kusak,), daemon=True, name="cevirix-gta").start()
 
     def durdur(self):
         self.calisiyor = False
         self._kusak += 1
         self.temizle_her_yerde()
+        if self.gta:
+            self.gta.sifirla()
         self.olaylar.put(("durum", "Çeviri durdu"))
 
     def hedef(self):
@@ -184,6 +189,10 @@ class Motor:
 
                 if metin and not diyalog_mu(metin):
                     metin = ""
+                # Oyundaki telefonda görülen mesaj ya da uygulama yazısı altyazı sayılmaz
+                if (metin and self.gta and self.ayar.get("gta_ekstra", True)
+                        and self.gta.kurallar.at(metin, int(time.monotonic() * 1000))):
+                    metin = ""
                 # Kendi Türkçe yazımızı okuyorsak (yakalamadan gizleme çalışmıyorsa) yok say
                 if metin and self.gosterilen_tr and benzer(metin, self.gosterilen_tr) > 0.7:
                     self._sizinti += 1
@@ -235,8 +244,11 @@ class Motor:
                 return None, "Oyun penceresi simge durumunda. chiaki-ng'yi küçültmeyin (arkada kalabilir)."
             if not self.ps5_bagli:
                 return None, "PS5 bağlantısı bekleniyor (chiaki-ng menüsü okunmaz)"
+            if self.gta and self.ayar.get("gta_ekstra", True) and self.gta.altyazi_bastir():
+                return None, "Oyunda harita açık (altyazı okunmuyor)"
             tam = self._pencere_karesi()
             if tam is not None:
+                tam = self._telefonu_karart(tam)
                 th, tw = tam.shape[:2]
                 sl, su, sg, sy = self.ayar["alan"]
                 x1, y1 = int(sl * tw), int(su * th)
@@ -248,6 +260,89 @@ class Motor:
                 return None, "Oyun penceresi arkada; bu bilgisayarda yalnız öndeyken okunabiliyor (Oyuna geç)"
             return yak.al(x, y, w, h), "chiaki-ng (ekrandan)"
         return yak.al(x, y, w, h), "tüm ekran"
+
+    def _telefonu_karart(self, tam):
+        """Oyundaki telefon açıksa altyazı okunmadan önce onun kısmı siyaha boyanır."""
+        if not self.gta or not self.ayar.get("gta_ekstra", True):
+            return tam
+        k = self.gta.kurallar.karartma(int(time.monotonic() * 1000))
+        if k is None:
+            return tam
+        h, w = tam.shape[:2]
+        tam = tam.copy()
+        tam[max(0, int(k[1] * h)):int(k[3] * h), max(0, int(k[0] * w)):int(k[2] * w)] = 0
+        return tam
+
+    def _gta_karesi(self, yak):
+        """GTA okuması için oyunun tam karesi ya da None."""
+        if self.chiaki_acik:
+            _, bulundu = self.hedef()
+            if not (bulundu and self.ps5_bagli):
+                return None
+            return self._pencere_karesi()
+        (x, y, w, h), _ = self.hedef()
+        return yak.al(x, y, w, h)
+
+    def _gta_dongusu(self, kusak):
+        from .gta import GtaOkuyucu
+        from .ayarlar import KLASOR
+        import os
+        # Yazı okuyucu altyazı döngüsünde hazırlanır; hazır olmasını bekle
+        while self.calisiyor and kusak == self._kusak and self._okuyucu is None:
+            time.sleep(0.3)
+        if not (self.calisiyor and kusak == self._kusak):
+            return
+        if self.gta is None:
+            self.gta = GtaOkuyucu(self._okuyucu, self.satir_cevir, self._ekran_yayinla,
+                                  os.path.join(KLASOR, "telefon_mesajlari.json"))
+        yak = ekran.Yakalayici()
+        acikti = True
+        while self.calisiyor and kusak == self._kusak:
+            bas = time.time()
+            try:
+                if not self.ayar.get("gta_ekstra", True):
+                    if acikti:
+                        self.gta.sifirla()
+                        acikti = False
+                    self.teshis["gta"] = ""
+                    time.sleep(0.5)
+                    continue
+                acikti = True
+                kare = self._gta_karesi(yak)
+                if kare is not None:
+                    self.gta.kare(kare)
+                    self.teshis["gta"] = self.gta.durum
+                else:
+                    self.teshis["gta"] = "Oyun görüntüsü bekleniyor"
+            except Exception as e:
+                self.teshis["gta"] = f"Telefon okuma hatası: {e}"
+                time.sleep(1.0)
+            bekle = 0.15 - (time.time() - bas)
+            if bekle > 0:
+                time.sleep(bekle)
+
+    def _ekran_yayinla(self, ogeler):
+        self.ekran_ogeleri = ogeler
+        self.olaylar.put(("ekran", ogeler))
+        for c in list(self.cikislar):
+            f = getattr(c, "ekran", None)
+            if f:
+                try:
+                    f(ogeler)
+                except Exception:
+                    pass
+
+    def satir_cevir(self, en):
+        """Telefon mesajı / harita kartı için tek satır çeviri: önbellek, Gemini, yoksa hızlı çeviri."""
+        tr = self._onbellekte(en)
+        if tr:
+            return tr
+        if self.gemini_kullanilabilir:
+            g = self._gemini_cevir(en)
+            if g:
+                return g
+        tr = self._hizli_cevir(en)
+        return tr if tr else None
 
     def onizleme_karesi(self, en_genislik=480):
         """Oyna sekmesindeki canlı pencere için küçültülmüş oyun görüntüsü (RGB) ya da None."""
