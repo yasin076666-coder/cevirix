@@ -15,9 +15,10 @@ YOK, BAGLANIYOR, BAGLI, KAPANDI, COKTU = "yok", "baglaniyor", "bagli", "kapandi"
 
 
 class BaglantiIzleyici:
+    TAZE_SN = 45   # bağlantı sürerken chiaki kayda sürekli yazar; bu kadar sessiz kalan kayıt eskidir
+
     def __init__(self, klasor=KLASOR):
         self.klasor = klasor
-        self.baslangic = time.time() - 5
         self.dosya = None
         self._konum = 0
         self.durum = YOK
@@ -28,8 +29,11 @@ class BaglantiIzleyici:
             dosyalar = glob.glob(os.path.join(self.klasor, "chiaki_session_*.log"))
         except Exception:
             return None
-        dosyalar = [d for d in dosyalar if os.path.getmtime(d) >= self.baslangic]
-        return max(dosyalar, key=os.path.getmtime) if dosyalar else None
+        if not dosyalar:
+            return None
+        en_yeni = max(dosyalar, key=os.path.getmtime)
+        # Çevirix'ten önce başlamış ama hâlâ süren bağlantı da sayılır; eski kayıtlar sayılmaz
+        return en_yeni if time.time() - os.path.getmtime(en_yeni) < self.TAZE_SN else None
 
     def yokla(self, pencere_var):
         """Yeni durumu döndürür; değişmediyse None."""
@@ -55,4 +59,10 @@ class BaglantiIzleyici:
                     self.durum, self.neden = KAPANDI, satir.split("Login message:", 1)[1].strip()
         if self.durum in (BAGLANIYOR, BAGLI) and not pencere_var:
             self.durum = COKTU
+        elif self.durum in (BAGLANIYOR, BAGLI) and self.dosya:
+            try:
+                if time.time() - os.path.getmtime(self.dosya) > self.TAZE_SN:
+                    self.durum = KAPANDI     # kayıt sustu: bağlantı bitmiş
+            except OSError:
+                pass
         return self.durum if self.durum != onceki else None

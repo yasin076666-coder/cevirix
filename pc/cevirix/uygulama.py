@@ -1337,7 +1337,10 @@ class Uygulama:
 
     def _yenile(self):
         try:
-            yeni = self.baglanti.yokla(ekran.islem_calisiyor())
+            acik = ekran.islem_calisiyor()
+            yeni = self.baglanti.yokla(acik)
+            self.motor.chiaki_acik = acik
+            self.motor.ps5_bagli = self.baglanti.durum == baglanti.BAGLI
             if yeni:
                 self._baglanti_degisti(yeni)
             # Çevirix penceresi öndeyken oyun üstündeki altyazı bu pencereyi kapatmasın

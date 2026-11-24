@@ -39,6 +39,8 @@ class Motor:
         self._hwnd = None
         self._hwnd_zaman = 0.0
         self._pencere_calisiyor = set()
+        self.chiaki_acik = False        # arayüz her yarım saniyede günceller
+        self.ps5_bagli = False
         self._havuz = concurrent.futures.ThreadPoolExecutor(max_workers=6)
         self._kilit = threading.Lock()
         self._sira = 0
@@ -152,11 +154,23 @@ class Motor:
             try:
                 kare, kaynak = self._altyazi_karesi(yak)
                 self.teshis["kaynak"] = kaynak
-                durum = ("PS5 görüntüsü okunuyor" if kaynak != "tüm ekran"
-                         else "chiaki-ng penceresi yok, tüm ekran okunuyor")
+                if kare is None:
+                    durum = kaynak
+                elif kaynak == "tüm ekran":
+                    durum = "chiaki-ng açık değil, tüm ekran okunuyor"
+                else:
+                    durum = "PS5 görüntüsü okunuyor"
                 if durum != son_durum:
                     self.olaylar.put(("durum", durum))
                     son_durum = durum
+                if kare is None:
+                    onceki_kare, onceki_metin = None, ""
+                    if not temiz:
+                        temiz = True
+                        deng.sifirla()
+                        self.temizle_her_yerde()
+                    time.sleep(0.5)
+                    continue
                 self.teshis["kare"] += 1
                 if degisti_mi(onceki_kare, kare):
                     metin = self._okuyucu.oku(kare)
@@ -213,9 +227,14 @@ class Motor:
         return kare
 
     def _altyazi_karesi(self, yak):
-        """(altyazı şeridi görüntüsü, kaynak adı)"""
+        """(altyazı şeridi görüntüsü ya da None, kaynak / bekleme nedeni)"""
         (x, y, w, h), bulundu = self.altyazi_alani()
-        if bulundu:
+        if self.chiaki_acik:
+            # chiaki-ng açıkken yalnız onun penceresi okunur; asla tüm ekran okunmaz
+            if not bulundu:
+                return None, "Oyun penceresi simge durumunda. chiaki-ng'yi küçültmeyin (arkada kalabilir)."
+            if not self.ps5_bagli:
+                return None, "PS5 bağlantısı bekleniyor (chiaki-ng menüsü okunmaz)"
             tam = self._pencere_karesi()
             if tam is not None:
                 th, tw = tam.shape[:2]
@@ -223,7 +242,11 @@ class Motor:
                 x1, y1 = int(sl * tw), int(su * th)
                 x2, y2 = min(tw, x1 + max(40, int(sg * tw))), min(th, y1 + max(20, int(sy * th)))
                 return tam[y1:y2, x1:x2], "chiaki-ng (arkadayken de)"
-            return yak.al(x, y, w, h), "chiaki-ng"
+            # Arkadan okuma bu bilgisayarda çalışmadı: ekrandan oku, ama önde başka pencere varsa okuma
+            on = ekran.user32.GetForegroundWindow() if ekran.WIN else None
+            if on and on != self._hwnd:
+                return None, "Oyun penceresi arkada; bu bilgisayarda yalnız öndeyken okunabiliyor (Oyuna geç)"
+            return yak.al(x, y, w, h), "chiaki-ng (ekrandan)"
         return yak.al(x, y, w, h), "tüm ekran"
 
     def onizleme_karesi(self, en_genislik=480):
