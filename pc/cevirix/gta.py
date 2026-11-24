@@ -118,7 +118,7 @@ class RgbResim:
     W, H = 240, 135
 
     def __init__(self, rgb):
-        self.rgb = rgb.astype(np.int16)
+        self.rgb = rgb.astype(np.int32)
         self.height, self.width = rgb.shape[:2]
         self.mn = self.rgb.min(axis=2)
         self.mx = self.rgb.max(axis=2)
@@ -165,7 +165,8 @@ class RgbResim:
 
 
 def gri(bgr):
-    return ((bgr[:, :, 2].astype(np.int32) * 299 + bgr[:, :, 1] * 587 + bgr[:, :, 0] * 114) // 1000).astype(np.uint8)
+    b = bgr.astype(np.int32)
+    return ((b[:, :, 2] * 299 + b[:, :, 1] * 587 + b[:, :, 0] * 114) // 1000).astype(np.uint8)
 
 
 def kirp(bolge, w, h):
