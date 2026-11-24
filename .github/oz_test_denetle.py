@@ -33,7 +33,7 @@ if (d.get("sozluk") or 0) <= 1000:
     hatalar.append("Sokak sözlüğü yüklenmedi")
 if not d.get("sokak"):
     hatalar.append("Sokak dili katmanı çalışmadı")
-for ad in ("tv", "web", "arayuz"):
+for ad in ("pencere", "tv", "web", "arayuz"):
     if d.get(ad) != "tamam":
         hatalar.append(f"{ad} denetimi başarısız")
 ses = d.get("ses") or {}

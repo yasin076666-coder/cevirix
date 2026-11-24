@@ -11,7 +11,7 @@ import traceback
 import webbrowser
 from tkinter import filedialog, messagebox, ttk
 
-from . import ayarlar, ekran
+from . import ayarlar, baglanti, ekran
 from .gecmis import Gecmis
 from .gemini import MODEL_SECENEKLERI, VARSAYILAN_TERIMLER
 from .motor import Motor
@@ -151,6 +151,7 @@ class Katman:
         self.tr.pack()
         self.en = tk.Label(cer, text="", fg="#d6dcf0", bg=ANAHTAR_RENK, justify="center")
         self.gizli = False       # F9 ile kullanıcı gizledi mi
+        self.bastirildi = False  # Çevirix penceresi öndeyken gizli
         self.metin = ("", "")
         self._hazir = False
         self._sabitle()
@@ -172,7 +173,7 @@ class Katman:
 
     def goster(self, tr, en=""):
         self.metin = (tr, en)
-        if self.gizli or not tr or not self.ayar.get("pc_katman", True):
+        if self.gizli or self.bastirildi or not tr or not self.ayar.get("pc_katman", True):
             self._gizle()
             return
         (x, y, w, h), _ = self.motor.altyazi_alani()
@@ -228,6 +229,13 @@ class Katman:
     def temizle(self):
         self.metin = ("", "")
         self._gizle()
+
+    def bastir(self, evet):
+        self.bastirildi = evet
+        if evet:
+            self._gizle()
+        else:
+            self.yenile()
 
     def gizle_goster(self):
         self.gizli = not self.gizli
@@ -364,6 +372,10 @@ class Uygulama:
         self._stil_bekliyor = None
         self.anahtarlar = {}
         self.tv_mesaj = ""
+        self.baglanti = baglanti.BaglantiIzleyici()
+        self._oto_ceviri = False      # çeviriyi PS5 bağlantısı mı başlattı
+        self._on_planda = False
+        self._onizleme_resmi = None
         self.ip = yerel_ip()
 
         self.kok = tk.Tk()
@@ -581,7 +593,24 @@ class Uygulama:
             durum = tk.Label(satir, text="", bg=KART, fg=SOLUK, font=("Segoe UI", 9))
             durum.pack(side="right", padx=10)
             self.adimlar[anahtar] = (simge, durum)
+        self.baglanti_uyari = tk.Label(k, text="", bg=KART, fg=KIRMIZI, font=("Segoe UI", 9),
+                                       wraplength=int(560 * self.o), justify="left", anchor="w")
+        self.baglanti_uyari.pack(fill="x", padx=14)
+        self._anahtar_satiri(k, "Bağlanınca Çevirix penceresine dön", "baglaninca_don",
+                             "PS5 görüntüsü gelince bu pencere öne gelir; oyun aşağıdaki küçük pencerede "
+                             "görünür ve arkadayken de okunur.")
+        self._anahtar_satiri(k, "Bağlanınca çeviriyi kendiliğinden başlat", "baglaninca_cevir")
         tk.Frame(k, bg=KART, height=6).pack()
+
+        k = self._kart(s, "OYUN")
+        self.onizleme_etiket = tk.Label(k, bg="#050C20", fg=SOLUK, cursor="hand2", font=("Segoe UI", 10),
+                                        text="PS5'e bağlanınca oyun görüntüsü burada da görünür.\n"
+                                             "Tıklayınca oyun penceresine geçilir.", height=8)
+        self.onizleme_etiket.pack(fill="x", padx=14, pady=(2, 6))
+        self.onizleme_etiket.bind("<Button-1>", lambda e: self.oyuna_gec())
+        d = tk.Frame(k, bg=KART)
+        d.pack(fill="x", padx=14, pady=(0, 10))
+        self._ikincil(d, "Oyuna geç", self.oyuna_gec).pack(side="left")
 
         k = self._kart(s, "ÇEVİRİ")
         satir = tk.Frame(k, bg=KART)
@@ -934,6 +963,66 @@ class Uygulama:
         except Exception as e:
             messagebox.showerror("Çevirix", f"Açılamadı: {e}")
 
+    def oyuna_gec(self):
+        hwnd = ekran.pencere_bul(pid=self.motor.chiaki_pid)
+        if hwnd:
+            ekran.one_getir(hwnd)
+        else:
+            self._durum("Oyun penceresi açık değil. Önce PS5'e bağlanın.", SARI)
+
+    def one_gel(self):
+        """Çevirix penceresini öne getirir (PS5 bağlanınca)."""
+        try:
+            self.kok.deiconify()
+            self.kok.lift()
+            self.kok.attributes("-topmost", True)
+            self.kok.after(400, lambda: self.kok.attributes("-topmost", False))
+            self.kok.focus_force()
+        except Exception:
+            pass
+        self.sekme("oyna")
+
+    def _baglanti_degisti(self, durum):
+        if durum == baglanti.BAGLANIYOR:
+            self.baglanti_uyari.configure(text="")
+            self._durum("PS5'e bağlanılıyor…", CAMGOBEGI)
+        elif durum == baglanti.BAGLI:
+            self.baglanti_uyari.configure(text="")
+            self._durum("PS5 bağlandı ✓", YESIL)
+            if self.ayar.get("baglaninca_cevir", True) and not self.motor.calisiyor:
+                self.ac_kapat()
+                self._oto_ceviri = True
+            if self.ayar.get("baglaninca_don", True):
+                self.kok.after(1200, self.one_gel)
+        elif durum in (baglanti.KAPANDI, baglanti.COKTU):
+            if self._oto_ceviri and self.motor.calisiyor:
+                self.ac_kapat()
+            self._oto_ceviri = False
+            if durum == baglanti.COKTU:
+                metin = ("chiaki-ng (PS5 bağlantı programı) kendiliğinden kapandı. Sık oluyorsa chiaki-ng "
+                         "ayarlarında Codec: H264, Hardware decoder: none, Resolution: 720p, FPS: 30 seçin.")
+                self.baglanti_uyari.configure(text=metin)
+                self._durum("PS5 bağlantı programı kapandı (çöktü)", KIRMIZI)
+                self.one_gel()
+            else:
+                neden = f": {self.baglanti.neden}" if self.baglanti.neden else ""
+                self._durum(f"PS5 bağlantısı kapandı{neden}", SARI)
+
+    def _onizleme_guncelle(self):
+        if not self.sayfalar["oyna"].winfo_ismapped() or self.kok.state() == "iconic":
+            return
+        kare = self.motor.onizleme_karesi(int(520 * self.o))
+        if kare is None:
+            if self._onizleme_resmi is not None:
+                self._onizleme_resmi = None
+                self.onizleme_etiket.configure(image="", height=8)
+            return
+        import numpy as np
+        h, w = kare.shape[:2]
+        ppm = f"P6 {w} {h} 255\n".encode("ascii") + np.ascontiguousarray(kare).tobytes()
+        self._onizleme_resmi = tk.PhotoImage(data=ppm, format="PPM")
+        self.onizleme_etiket.configure(image=self._onizleme_resmi, height=h)
+
     def chiaki_sec(self):
         yol = filedialog.askopenfilename(title="chiaki.exe seç", filetypes=[("Program", "*.exe")])
         if yol:
@@ -1247,6 +1336,18 @@ class Uygulama:
         durum.configure(text=("✓ " + tamam_metin) if tamam else bekle_metin, fg=renk)
 
     def _yenile(self):
+        try:
+            yeni = self.baglanti.yokla(ekran.islem_calisiyor())
+            if yeni:
+                self._baglanti_degisti(yeni)
+            # Çevirix penceresi öndeyken oyun üstündeki altyazı bu pencereyi kapatmasın
+            on = bool(ekran.on_planda(ekran.tk_hwnd(self.kok)))
+            if on != self._on_planda:
+                self._on_planda = on
+                self.katman.bastir(on)
+            self._onizleme_guncelle()
+        except Exception:
+            pass
         try:
             _, ps5 = self.motor.hedef()
             calisiyor = self.motor.calisiyor

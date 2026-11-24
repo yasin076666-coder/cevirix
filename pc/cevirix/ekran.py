@@ -145,6 +145,118 @@ def en_ustte(hwnd):
         user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010)
 
 
+if WIN:
+    gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
+    user32.GetDC.restype = wintypes.HDC
+    user32.GetDC.argtypes = [wintypes.HWND]
+    user32.ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
+    user32.PrintWindow.argtypes = [wintypes.HWND, wintypes.HDC, wintypes.UINT]
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    gdi32.CreateCompatibleDC.restype = wintypes.HDC
+    gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
+    gdi32.CreateCompatibleBitmap.restype = wintypes.HBITMAP
+    gdi32.CreateCompatibleBitmap.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int]
+    gdi32.SelectObject.restype = wintypes.HGDIOBJ
+    gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
+    gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
+    gdi32.DeleteDC.argtypes = [wintypes.HDC]
+    gdi32.GetDIBits.argtypes = [wintypes.HDC, wintypes.HBITMAP, wintypes.UINT, wintypes.UINT,
+                                ctypes.c_void_p, ctypes.c_void_p, wintypes.UINT]
+
+    class _BITMAPINFOHEADER(ctypes.Structure):
+        _fields_ = [("biSize", wintypes.DWORD), ("biWidth", wintypes.LONG), ("biHeight", wintypes.LONG),
+                    ("biPlanes", wintypes.WORD), ("biBitCount", wintypes.WORD),
+                    ("biCompression", wintypes.DWORD), ("biSizeImage", wintypes.DWORD),
+                    ("biXPelsPerMeter", wintypes.LONG), ("biYPelsPerMeter", wintypes.LONG),
+                    ("biClrUsed", wintypes.DWORD), ("biClrImportant", wintypes.DWORD)]
+
+PW_CLIENTONLY = 0x1
+PW_RENDERFULLCONTENT = 0x2
+
+
+def pencere_goruntusu(hwnd):
+    """Pencerenin iç alanını, önünde başka pencere olsa bile alır (BGR numpy dizisi).
+
+    Simge durumundaki pencerede çalışmaz. Başarısızsa None döner.
+    """
+    if not WIN or not hwnd:
+        return None
+    import numpy as np
+    r = wintypes.RECT()
+    if not user32.GetClientRect(hwnd, ctypes.byref(r)):
+        return None
+    w, h = r.right - r.left, r.bottom - r.top
+    if w < 50 or h < 50:
+        return None
+    hdc = user32.GetDC(hwnd)
+    if not hdc:
+        return None
+    mdc = gdi32.CreateCompatibleDC(hdc)
+    bmp = gdi32.CreateCompatibleBitmap(hdc, w, h)
+    eski = gdi32.SelectObject(mdc, bmp)
+    try:
+        if not user32.PrintWindow(hwnd, mdc, PW_CLIENTONLY | PW_RENDERFULLCONTENT):
+            return None
+        bi = _BITMAPINFOHEADER()
+        bi.biSize = ctypes.sizeof(_BITMAPINFOHEADER)
+        bi.biWidth, bi.biHeight = w, -h          # eksi: satırlar yukarıdan aşağı
+        bi.biPlanes, bi.biBitCount = 1, 32
+        buf = np.empty((h, w, 4), dtype=np.uint8)
+        satir = gdi32.GetDIBits(mdc, bmp, 0, h, buf.ctypes.data, ctypes.byref(bi), 0)
+        if satir != h:
+            return None
+        return buf[:, :, :3]
+    finally:
+        gdi32.SelectObject(mdc, eski)
+        gdi32.DeleteObject(bmp)
+        gdi32.DeleteDC(mdc)
+        user32.ReleaseDC(hwnd, hdc)
+
+
+def islem_calisiyor(adlar=("chiaki.exe", "chiaki-ng.exe")):
+    """Bu adlardan biriyle çalışan bir program var mı (penceresi simge durumunda olsa bile)."""
+    if not WIN:
+        return False
+
+    class PE32(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD),
+                    ("th32ProcessID", wintypes.DWORD), ("th32DefaultHeapID", ctypes.c_size_t),
+                    ("th32ModuleID", wintypes.DWORD), ("cntThreads", wintypes.DWORD),
+                    ("th32ParentProcessID", wintypes.DWORD), ("pcPriClassBase", wintypes.LONG),
+                    ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
+
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    snap = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if not snap or snap == wintypes.HANDLE(-1).value:
+        return False
+    try:
+        pe = PE32()
+        pe.dwSize = ctypes.sizeof(PE32)
+        ok = kernel32.Process32FirstW(snap, ctypes.byref(pe))
+        while ok:
+            if pe.szExeFile.lower() in adlar:
+                return True
+            ok = kernel32.Process32NextW(snap, ctypes.byref(pe))
+        return False
+    finally:
+        kernel32.CloseHandle(snap)
+
+
+def on_planda(hwnd):
+    return WIN and hwnd and user32.GetForegroundWindow() == hwnd
+
+
+def one_getir(hwnd):
+    """Pencereyi öne alır (simge durumundaysa geri açar)."""
+    if not WIN or not hwnd:
+        return
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+    user32.SetForegroundWindow(hwnd)
+
+
 class Yakalayici:
     """mss ile ekranın bir bölgesini alır (her iş parçacığı kendi örneğini kullanmalı)."""
 

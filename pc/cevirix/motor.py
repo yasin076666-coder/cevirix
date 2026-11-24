@@ -38,6 +38,7 @@ class Motor:
         self.cikislar = []              # TV, web sayfası, ses: göster(tr, en, sira) / temizle()
         self._hwnd = None
         self._hwnd_zaman = 0.0
+        self._pencere_calisiyor = set()
         self._havuz = concurrent.futures.ThreadPoolExecutor(max_workers=6)
         self._kilit = threading.Lock()
         self._sira = 0
@@ -149,13 +150,13 @@ class Motor:
         while self.calisiyor and kusak == self._kusak:
             bas = time.time()
             try:
-                (x, y, w, h), bulundu = self.altyazi_alani()
-                self.teshis["kaynak"] = "chiaki-ng" if bulundu else "tüm ekran"
-                durum = "PS5 görüntüsü okunuyor" if bulundu else "chiaki-ng penceresi yok, tüm ekran okunuyor"
+                kare, kaynak = self._altyazi_karesi(yak)
+                self.teshis["kaynak"] = kaynak
+                durum = ("PS5 görüntüsü okunuyor" if kaynak != "tüm ekran"
+                         else "chiaki-ng penceresi yok, tüm ekran okunuyor")
                 if durum != son_durum:
                     self.olaylar.put(("durum", durum))
                     son_durum = durum
-                kare = yak.al(x, y, w, h)
                 self.teshis["kare"] += 1
                 if degisti_mi(onceki_kare, kare):
                     metin = self._okuyucu.oku(kare)
@@ -192,6 +193,50 @@ class Motor:
             bekle = int(self.ayar["okuma_araligi_ms"]) / 1000.0 - (time.time() - bas)
             if bekle > 0:
                 time.sleep(bekle)
+
+    def _pencere_karesi(self):
+        """chiaki-ng penceresinin tamamı (önünde Çevirix penceresi olsa bile). Olmazsa None."""
+        hwnd = self._hwnd
+        if not hwnd:
+            return None
+        try:
+            kare = ekran.pencere_goruntusu(hwnd)
+        except Exception:
+            return None
+        if kare is None:
+            return None
+        if hwnd not in self._pencere_calisiyor:
+            # Bu pencerede yöntem çalışıyor mu? Görüntü bir kez siyah değilse güvenilir say.
+            if float(kare[::16, ::16].mean()) < 3:
+                return None
+            self._pencere_calisiyor.add(hwnd)
+        return kare
+
+    def _altyazi_karesi(self, yak):
+        """(altyazı şeridi görüntüsü, kaynak adı)"""
+        (x, y, w, h), bulundu = self.altyazi_alani()
+        if bulundu:
+            tam = self._pencere_karesi()
+            if tam is not None:
+                th, tw = tam.shape[:2]
+                sl, su, sg, sy = self.ayar["alan"]
+                x1, y1 = int(sl * tw), int(su * th)
+                x2, y2 = min(tw, x1 + max(40, int(sg * tw))), min(th, y1 + max(20, int(sy * th)))
+                return tam[y1:y2, x1:x2], "chiaki-ng (arkadayken de)"
+            return yak.al(x, y, w, h), "chiaki-ng"
+        return yak.al(x, y, w, h), "tüm ekran"
+
+    def onizleme_karesi(self, en_genislik=480):
+        """Oyna sekmesindeki canlı pencere için küçültülmüş oyun görüntüsü (RGB) ya da None."""
+        _, bulundu = self.hedef()
+        if not bulundu:
+            return None
+        tam = self._pencere_karesi()
+        if tam is None:
+            return None
+        h, w = tam.shape[:2]
+        adim = max(1, w // en_genislik)
+        return tam[::adim, ::adim, ::-1]
 
     # ------------------------------------------------------------ çeviri hattı
     def altyazi_geldi(self, en):

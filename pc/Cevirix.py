@@ -1,4 +1,5 @@
 """Çevirix PC giriş noktası (PyInstaller bunu derler)."""
+import os
 import sys
 
 
@@ -37,6 +38,40 @@ def oz_test(cikti):
     def yakalama():
         from cevirix.ekran import Yakalayici
         return list(Yakalayici().al(0, 0, 64, 32).shape)
+
+    def pencere():
+        # Arkadaki pencereyi okuma: önce görünür bir pencere aç, üstüne başka pencere koy, yine oku
+        import tkinter as tk
+        from cevirix import ekran
+        from cevirix.baglanti import BAGLI, KAPANDI, BaglantiIzleyici
+        kok = tk.Tk()
+        kok.geometry("400x300+50+50")
+        kok.configure(bg="#ff0000")
+        ust = tk.Toplevel(kok)
+        ust.geometry("500x400+0+0")
+        ust.configure(bg="#0000ff")
+        for _ in range(20):
+            kok.update()
+            time.sleep(0.05)
+        kare = ekran.pencere_goruntusu(ekran.tk_hwnd(kok))
+        kok.destroy()
+        assert kare is not None, "PrintWindow görüntü vermedi"
+        kirmizi = float(kare[:, :, 2].mean())
+        sonuc["pencere_kirmizi"] = round(kirmizi)
+        sonuc["islem"] = ekran.islem_calisiyor(("cevirix.exe",))
+        # Bağlantı izleyici: sahte chiaki kaydı
+        import tempfile
+        kl = tempfile.mkdtemp()
+        b = BaglantiIzleyici(kl)
+        yol = os.path.join(kl, "chiaki_session_test.log")
+        with open(yol, "w", encoding="utf-8") as f:
+            f.write("[I] Ctrl received Login message: success\n")
+        d1 = b.yokla(True)
+        with open(yol, "a", encoding="utf-8") as f:
+            f.write("[I] Session has quit\n")
+        d2 = b.yokla(True)
+        assert (d1, d2) == (BAGLI, KAPANDI), (d1, d2)
+        return "tamam" if kirmizi > 200 else f"arkadaki pencere okunamadı (kırmızı={kirmizi:.0f})"
 
     def tv():
         from websockets.sync.client import connect
@@ -104,7 +139,8 @@ def oz_test(cikti):
             json.dump(sonuc, f, ensure_ascii=False, indent=2)
 
     # Her adımdan önce ve sonra yazılır: program bir adımda çökerse hangisi olduğu görülür
-    for ad, is_ in (("ocr", ocr), ("sozluk", sozluk), ("yakalama", yakalama), ("tv", tv), ("web", web),
+    for ad, is_ in (("ocr", ocr), ("sozluk", sozluk), ("yakalama", yakalama), ("pencere", pencere),
+                    ("tv", tv), ("web", web),
                     ("ses", ses), ("arayuz", arayuz)):
         sonuc["son_baslayan"] = ad
         yaz()

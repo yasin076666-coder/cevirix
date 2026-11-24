@@ -28,6 +28,9 @@ VARSAYILAN = {
     # Diğer ekranlar
     "tv_gonder": True,          # Çevirix TV (Philips / Android TV)
     "web_sayfa": True,          # tarayıcı altyazı sayfası (iPhone, tablet)
+    # PS5 bağlantısı
+    "baglaninca_don": True,     # PS5'e bağlanınca Çevirix penceresine dön
+    "baglaninca_cevir": True,   # PS5'e bağlanınca çeviriyi kendiliğinden başlat
     # Okuma
     # Altyazı alanı: PS5 görüntüsüne oranla (sol, üst, genişlik, yükseklik)
     "alan": [0.12, 0.74, 0.76, 0.22],
