@@ -39,6 +39,13 @@ object ScreenTextReader {
 
     private data class Block(val key: String, val en: String, val box: LiveBox, val lineH: Double)
 
+    /** GTA V: telefon sağ altta dikey durur (iFruit / Badger / Facade). Bu sütundaki yazılar ayrı panelde çevrilir. */
+    private val GTA5_PHONE = floatArrayOf(0.66f, 0.30f, 0.93f, 0.985f)
+    private var phoneBlocks: List<Block> = emptyList()
+    private var phoneSeenKey = ""
+    private var phoneSeenCount = 0
+    private var phoneMissing = 0
+
     private val seenCount = HashMap<String, Int>()
     private val shown = LinkedHashMap<String, Block>()
     private val missing = HashMap<String, Int>()
@@ -135,16 +142,41 @@ object ScreenTextReader {
         // Altyazı şeridi (altyazıyı zaten çeviriyoruz)
         if (cy >= Prefs.roiTop / 100.0 - 0.01 && cy <= Prefs.roiBottom / 100.0 + 0.01 && cx in 0.12..0.88) return false
         val profile = GameProfile.current
+        if (profile == GameProfile.GTA5 && inPhoneZone(b)) return false
         if (profile.hudZones.any { inZone(b, it) }) return false
         if (!TextTools.isDialogLine(t) || TextTools.isNoiseLine(t)) return false
         if (GtaBridge.dropLine(t, b)) return false
         return true
     }
 
+    private fun inPhoneZone(b: LiveBox): Boolean {
+        val z = GTA5_PHONE
+        val cx = (b.left + b.right) / 2
+        val cy = (b.top + b.bottom) / 2
+        return cx >= z[0] && cx <= z[2] && cy >= z[1] && cy <= z[3] && b.right <= 0.95
+    }
+
+    /** GTA V telefonu açıkken altyazı okuması telefon sütununu atlasın. */
+    fun phoneHidesSubtitle(b: LiveBox?): Boolean {
+        if (b == null || phoneBlocks.isEmpty() || GameProfile.current != GameProfile.GTA5) return false
+        val left = phoneBlocks.minOf { it.box.left } - 0.02
+        return (b.left + b.right) / 2 >= left
+    }
+
+    /** GTA V telefon satırları: yalnız telefon sütunu, sabit arayüz köşeleri dikkate alınmaz. */
+    private fun keepPhone(l: LiveLine): Boolean {
+        val b = l.box ?: return false
+        val t = l.text.trim()
+        if (!inPhoneZone(b)) return false
+        if (t.count { it.isLetter() } < 2) return false
+        if (b.right - b.left > 0.25) return false // telefon ekranından geniş olamaz
+        return TextTools.isDialogLine(t) && !TextTools.isNoiseLine(t)
+    }
+
     private fun normKey(s: String) = s.lowercase().filter { it.isLetterOrDigit() || it == ' ' }.replace(Regex("\\s+"), " ").trim()
 
-    private fun group(lines: List<LiveLine>): List<Block> {
-        val kept = lines.filter { keep(it) }.sortedBy { it.box!!.top }
+    private fun group(lines: List<LiveLine>, filter: (LiveLine) -> Boolean = ::keep, limit: Int = MAX_BLOCKS, byArea: Boolean = true): List<Block> {
+        val kept = lines.filter { filter(it) }.sortedBy { it.box!!.top }
         val out = ArrayList<Block>()
         var curText = StringBuilder()
         var cur: LiveBox? = null
@@ -179,7 +211,8 @@ object ScreenTextReader {
             curText.append(l.text.trim()); cur = b; hSum = h; n = 1
         }
         flush()
-        return out.sortedByDescending { (it.box.right - it.box.left) * (it.box.bottom - it.box.top) }.take(MAX_BLOCKS)
+        return if (byArea) out.sortedByDescending { (it.box.right - it.box.left) * (it.box.bottom - it.box.top) }.take(limit)
+        else out.take(limit)
     }
 
     // ---------------------------------------------------------------- izleme, çeviri, yayın
@@ -206,8 +239,63 @@ object ScreenTextReader {
             // İki taramadır görünenleri ekle
             for (b in blocks) if ((seenCount[b.key] ?: 0) >= 2 && b.key !in shown) shown[b.key] = b
         }
+        if (GameProfile.current == GameProfile.GTA5) trackPhone(lines) else if (phoneBlocks.isNotEmpty()) phoneBlocks = emptyList()
         for (b in synchronized(shown) { shown.values.toList() }) ensureTranslated(b)
+        for (b in phoneBlocks) ensureTranslated(b)
         publish()
+    }
+
+    /** GTA V telefonu: en az iki satır/mesaj görünce açık sayılır, iki tarama üst üste aynıysa gösterilir. */
+    private fun trackPhone(lines: List<LiveLine>) {
+        val blocks = group(lines, ::keepPhone, limit = 10, byArea = false)
+        val lineCount = lines.count { keepPhone(it) }
+        if (blocks.isEmpty() || lineCount < 2) {
+            phoneMissing++
+            if (phoneMissing >= 2) { phoneBlocks = emptyList(); phoneSeenKey = ""; phoneSeenCount = 0 }
+            return
+        }
+        phoneMissing = 0
+        val key = blocks.joinToString("|") { it.key }
+        if (key == phoneSeenKey) phoneSeenCount++ else { phoneSeenKey = key; phoneSeenCount = 1 }
+        // İçerik değişince (yeni mesaj) eski panel kalır, yenisi iki taramada oturur
+        if (phoneSeenCount >= 2) phoneBlocks = blocks
+    }
+
+    /** Telefonun soluna ayrı panel: başlık + her mesaj ayrı balon. */
+    private fun phonePanelItems(): List<Map<String, Any?>> {
+        val blocks = phoneBlocks
+        if (blocks.isEmpty()) return emptyList()
+        val msgs = blocks.mapNotNull { b -> cache[b.key]?.takeIf { it.isNotBlank() }?.let { b to it } }
+        if (msgs.isEmpty()) return emptyList()
+        val phoneLeft = blocks.minOf { it.box.left }
+        val phoneTop = blocks.minOf { it.box.top }
+        val w = 0.27
+        val right = (phoneLeft - 0.012).coerceAtLeast(w + 0.01)
+        val left = right - w
+        val line = 0.026
+        val charW = 0.219 * line
+        val perLine = max(8, ((w - 0.014) / charW).toInt())
+        val items = ArrayList<Map<String, Any?>>()
+        var top = (phoneTop - 0.05).coerceIn(0.03, 0.6)
+        val headH = line * 1.35 + 0.008
+        items += mapOf(
+            "text" to "Telefon",
+            "box" to mapOf("left" to left, "top" to top, "right" to right, "bottom" to top + headH),
+            "line" to line, "fill" to "#FF3D9A", "ink" to "#FFFFFF", "alpha" to 0.95,
+        )
+        top += headH + 0.006
+        for ((_, tr) in msgs) {
+            val lines = ceil(tr.length / perLine.toDouble()).toInt().coerceIn(1, 6)
+            val h = lines * line * 1.25 + 0.012
+            if (top + h > 0.985) break
+            items += mapOf(
+                "text" to tr,
+                "box" to mapOf("left" to left, "top" to top, "right" to right, "bottom" to top + h),
+                "line" to line, "fill" to "#15233F", "ink" to "#FFFFFF", "alpha" to 0.94, "side" to true,
+            )
+            top += h + 0.006
+        }
+        return items
     }
 
     private fun ensureTranslated(b: Block) {
@@ -244,6 +332,7 @@ object ScreenTextReader {
                 "alpha" to 0.92,
             )
         }
+        items += phonePanelItems()
         val sig = items.joinToString("|") { "${it["text"]}@${(it["box"] as Map<*, *>).values.joinToString(",") { v -> "%.3f".format(v as Double) }}" }
         val nowMs = SystemClock.elapsedRealtime()
         if (!force && sig == lastSig && nowMs - lastSentAt < REFRESH_MS) return

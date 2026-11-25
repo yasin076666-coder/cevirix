@@ -220,7 +220,9 @@ class SubtitleOcr(
                 val t = line.text.trim()
                 TextTools.isDialogLine(t) && !TextTools.isNoiseLine(t) &&
                     !(isShortUnpunctuated(t) && isDarkTextOnLight(crop, line.boundingBox, scale)) &&
-                    !com.bugra.altyazi.phone.gta.GtaBridge.dropLine(t, frameBox(line.boundingBox, crop, scale))
+                    frameBox(line.boundingBox, crop, scale).let { fb ->
+                        !com.bugra.altyazi.phone.gta.GtaBridge.dropLine(t, fb) && !ScreenTextReader.phoneHidesSubtitle(fb)
+                    }
             }
             .map { it.text.trim() }
         val joined = if (com.bugra.altyazi.phone.gta.GtaBridge.subtitlesSuppressed()) ""
