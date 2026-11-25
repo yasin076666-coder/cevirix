@@ -117,6 +117,7 @@ class CevirixActivity : AppCompatActivity() {
         setupLive()
         setupNino()
         setupGta()
+        setupGame()
         setupExtras()
 
         lifecycleScope.launch {
@@ -730,7 +731,33 @@ class CevirixActivity : AppCompatActivity() {
         HistoryStore.flush()
     }
 
+    private fun setupGame() {
+        val group = findViewById<com.google.android.material.chip.ChipGroup>(R.id.gameChips)
+        val current = GameProfile.current
+        for (i in 0 until group.childCount) {
+            val c = group.getChildAt(i) as com.google.android.material.chip.Chip
+            if (c.tag == current.id) c.isChecked = true
+        }
+        group.setOnCheckedStateChangeListener { g, ids ->
+            val chip = ids.firstOrNull()?.let { g.findViewById<com.google.android.material.chip.Chip>(it) } ?: return@setOnCheckedStateChangeListener
+            val p = GameProfile.of(chip.tag as? String)
+            if (p.id == Prefs.game) return@setOnCheckedStateChangeListener
+            Prefs.game = p.id
+            Prefs.roiTop = p.roiTop
+            Prefs.roiBottom = p.roiBottom
+            runCatching { findViewById<RangeSlider>(R.id.roiSlider).values = listOf(p.roiTop.toFloat(), p.roiBottom.toFloat()) }
+            if (StreamCapture.current != null) {
+                if (p.gtaPhone) com.bugra.altyazi.phone.gta.GtaBridge.start(this)
+                else { com.bugra.altyazi.phone.gta.GtaBridge.stop(); CevirixEngine.sendScreenClear() }
+            }
+            toast("${p.title} seçildi: altyazı bölgesi ve çeviri üslubu bu oyuna göre ayarlandı")
+        }
+    }
+
     private fun setupGta() {
+        val menu = findViewById<MaterialSwitch>(R.id.menuSwitch)
+        menu.isChecked = Prefs.menuBalloons
+        menu.setOnCheckedChangeListener { _, checked -> Prefs.menuBalloons = checked }
         val sw = findViewById<MaterialSwitch>(R.id.gtaSwitch)
         sw.isChecked = Prefs.gtaExtras
         sw.setOnCheckedChangeListener { _, checked ->

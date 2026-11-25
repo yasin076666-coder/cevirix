@@ -187,17 +187,27 @@ object CevirixEngine {
         return runCatching { translator.offline(en) }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
-    fun sendScreen(items: List<Map<String, Any?>>, durationMs: Int) {
-        AppState.screenItems.value = items
-        server?.sendScreen(toJsonArray(items), durationMs)
-        NinoBridge.screen(items, durationMs)
+    // Ekran örtüleri birden çok kaynaktan gelir (GTA telefon/harita, menü balonları); TV'ye tek liste gider.
+    private val screenSources = java.util.concurrent.ConcurrentHashMap<String, List<Map<String, Any?>>>()
+
+    fun setScreen(source: String, items: List<Map<String, Any?>>, durationMs: Int = 120_000) {
+        if (items.isEmpty()) {
+            if (screenSources.remove(source) == null) return
+        } else screenSources[source] = items
+        val all = screenSources.values.flatten()
+        AppState.screenItems.value = all
+        if (all.isEmpty()) {
+            server?.sendScreenClear()
+            NinoBridge.screenClear()
+        } else {
+            server?.sendScreen(toJsonArray(all), durationMs)
+            NinoBridge.screen(all, durationMs)
+        }
     }
 
-    fun sendScreenClear() {
-        AppState.screenItems.value = emptyList()
-        server?.sendScreenClear()
-        NinoBridge.screenClear()
-    }
+    fun sendScreen(items: List<Map<String, Any?>>, durationMs: Int) = setScreen("gta", items, durationMs)
+
+    fun sendScreenClear() = setScreen("gta", emptyList())
 
     private fun toJson(v: Any?): Any? = when (v) {
         null -> org.json.JSONObject.NULL

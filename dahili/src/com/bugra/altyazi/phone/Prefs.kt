@@ -107,6 +107,16 @@ object Prefs {
         get() = sp.getString("glossary", null) ?: Glossary.DEFAULT
         set(v) = sp.edit().putString("glossary", v).apply()
 
+    /** Oynanan oyun (GameProfile kimliği). */
+    var game: String
+        get() = sp.getString("game", "gta6") ?: "gta6"
+        set(v) = sp.edit().putString("game", v).apply()
+
+    /** Menü, görev ve yardım yazılarını yanlarında balonla çevir. */
+    var menuBalloons: Boolean
+        get() = sp.getBoolean("menu_balloons", true)
+        set(v) = sp.edit().putBoolean("menu_balloons", v).apply()
+
     var tvShowEn: Boolean
         get() = sp.getBoolean("tv_en", false)
         set(v) = sp.edit().putBoolean("tv_en", v).apply()

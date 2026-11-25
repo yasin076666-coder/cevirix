@@ -31,7 +31,7 @@ object GtaBridge {
 
     @Synchronized
     fun start(context: Context) {
-        if (reader != null || !Prefs.gtaExtras) return
+        if (reader != null || !Prefs.gtaExtras || !com.bugra.altyazi.phone.GameProfile.current.gtaPhone) return
         val sc = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val ml = MlKitTextReader()
         val ch = ScreenChannel(sc, clock, object : ScreenOutput {

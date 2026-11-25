@@ -404,6 +404,63 @@
                         android:textColor="@color/cx_pink"
                         android:visibility="gone" />
 
+                    <!-- Oyun seçimi -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="18dp"
+                        android:text="Oyun"
+                        android:textColor="@color/cx_muted"
+                        android:textSize="13sp" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/gameChips"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:selectionRequired="true"
+                        app:singleSelection="true">
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/gameGta6"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:tag="gta6"
+                                android:text="GTA 6" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/gameGta5"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:tag="gta5"
+                                android:text="GTA V" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/gameCod"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:tag="cod"
+                                android:text="Call of Duty" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/gameBf"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:tag="bf"
+                                android:text="Battlefield" />
+
+                            <com.google.android.material.chip.Chip
+                                android:id="@+id/gameOther"
+                                style="@style/Widget.Material3.Chip.Filter"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:tag="other"
+                                android:text="Diğer" />
+                    </com.google.android.material.chip.ChipGroup>
+
                     <!-- Hızlı ayarlar -->
                     <com.google.android.material.card.MaterialCardView
                         style="@style/CxKart"
@@ -678,20 +735,27 @@
                             style="@style/CxKartBaslik"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="GTA 6 oyun içi yazılar" />
+                            android:text="Oyun içi yazılar" />
 
                         <TextView
                             style="@style/CxAciklama"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Oyundaki telefona gelen mesajlar TV'de balon balon Türkçe görünür. Harita ve görev kartının Türkçesi kartın üstüne yerleşir." />
+                            android:text="Menü, görev ve yardım yazılarının Türkçesi yazının yanında balonla çıkar. GTA 6'da oyundaki telefona gelen mesajlar da balon balon görünür, harita kartının Türkçesi kartın üstüne yerleşir." />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/menuSwitch"
+                            style="@style/CxAnahtar"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Menü ve görev yazıları balonla" />
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/gtaSwitch"
                             style="@style/CxAnahtar"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Telefon mesajları ve harita kartı" />
+                            android:text="GTA 6: telefon mesajları ve harita kartı" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 

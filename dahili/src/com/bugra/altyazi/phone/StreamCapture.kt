@@ -105,6 +105,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         current = this
         AppState.streaming.value = true
         com.bugra.altyazi.phone.gta.GtaBridge.start(activity.applicationContext)
+        ScreenTextReader.start()
         PsAudio.apply()
         addHud()
         BgService.onStopRequested = { ui.post { try { activity.finish() } catch (e: Exception) { } } }
@@ -159,6 +160,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
         if (current === this) current = null
         com.bugra.altyazi.phone.gta.GtaBridge.stop()
         CevirixEngine.sendScreenClear()
+        ScreenTextReader.stop()
         App.markPs5Closed(activity)
         AppState.streaming.value = false
         AppState.liveFrame.value = null
@@ -209,6 +211,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             PixelCopy.request(surfaceView, full, { result ->
                 if (result == PixelCopy.SUCCESS) {
                     com.bugra.altyazi.phone.gta.GtaBridge.offer(full)
+                    ScreenTextReader.offer(full)
                     val crop = cropSubtitle(full)
                     onCopied(result, crop)
                 } else {
@@ -232,6 +235,7 @@ class StreamCapture(private val activity: Activity, private val surfaceView: Sur
             if (!BgFrames.grab(full)) return // henüz kare yok
             publishLive(full)
             com.bugra.altyazi.phone.gta.GtaBridge.offer(full)
+            ScreenTextReader.offer(full)
             val crop = cropSubtitle(full)
             onCopied(if (crop != null) PixelCopy.SUCCESS else -3, crop)
         } catch (e: Throwable) {

@@ -34,7 +34,7 @@ Real Dimez"""
     @Volatile private var cachedTerms: List<Term> = emptyList()
 
     fun terms(): List<Term> {
-        val text = Prefs.glossary
+        val text = Prefs.glossary + "\n" + GameProfile.current.terms
         if (text == cachedText) return cachedTerms
         val list = text.lines().mapNotNull { raw ->
             val l = raw.trim()
@@ -51,13 +51,15 @@ Real Dimez"""
         return list
     }
 
-    /** Gemini'ye eklenen not (boşsa null). Yalnız cümlede geçen terimler. */
+    /** Gemini'ye eklenen not: oyun bilgisi ve cümlede geçen terimler. */
     fun noteFor(english: String): String? {
+        val game = GameProfile.current.note
         val found = terms().filter { english.contains(it.source, ignoreCase = true) }
-        if (found.isEmpty()) return null
+        if (found.isEmpty()) return game.ifBlank { null }
         val keep = found.filter { it.target == null }.joinToString(", ") { it.source }
         val fixed = found.filter { it.target != null }.joinToString("; ") { "${it.source} → ${it.target}" }
         return buildString {
+            if (game.isNotBlank()) append(game).append("\n")
             append("Terim sözlüğü:")
             if (keep.isNotEmpty()) append(" şu adları çevirme, aynen yaz: ").append(keep).append('.')
             if (fixed.isNotEmpty()) append(" Şu karşılıkları kullan: ").append(fixed).append('.')
