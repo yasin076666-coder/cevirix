@@ -37,6 +37,9 @@ object AppState {
     /** GTA 6 okuyucusunun durumu (teşhis). */
     val gtaStatus = MutableStateFlow("")
 
+    /** Menü/görev balon okuyucusunun durumu (teşhis). */
+    val menuStatus = MutableStateFlow("")
+
     /** PS5 bağlantısı açık mı? */
     val streaming = MutableStateFlow(false)
 

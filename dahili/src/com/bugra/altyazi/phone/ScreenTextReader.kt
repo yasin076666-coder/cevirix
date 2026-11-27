@@ -53,6 +53,7 @@ object ScreenTextReader {
     private val pending = ConcurrentHashMap.newKeySet<String>()
     private val slots = Semaphore(2)
     private var lastSig = ""
+    @Volatile private var lastLineCount = 0
     private var lastSentAt = 0L
 
     @Synchronized
@@ -76,6 +77,7 @@ object ScreenTextReader {
         }
         lastSig = ""
         pixels = null
+        AppState.menuStatus.value = ""
         CevirixEngine.setScreen(SOURCE, emptyList())
     }
 
@@ -88,7 +90,8 @@ object ScreenTextReader {
         val sc = scope ?: return
         val reader = ocr ?: return
         val now = SystemClock.elapsedRealtime()
-        if (busy || now - lastScan < SCAN_MS) return
+        val interval = if (phoneBlocks.isNotEmpty() || phoneSeenCount > 0) 800L else SCAN_MS
+        if (busy || now - lastScan < interval) return
         lastScan = now
         val plane = try { lumaScaled(bmp) } catch (e: Throwable) { null } ?: return
         busy = true
@@ -145,7 +148,7 @@ object ScreenTextReader {
         if (profile == GameProfile.GTA5 && inPhoneZone(b)) return false
         if (profile.hudZones.any { inZone(b, it) }) return false
         if (!TextTools.isDialogLine(t) || TextTools.isNoiseLine(t)) return false
-        if (GtaBridge.dropLine(t, b)) return false
+        if (GtaBridge.insidePhone(b)) return false
         return true
     }
 
@@ -218,6 +221,7 @@ object ScreenTextReader {
     // ---------------------------------------------------------------- izleme, çeviri, yayın
 
     private fun process(lines: List<LiveLine>) {
+        lastLineCount = lines.size
         val blocks = group(lines)
         val now = blocks.associateBy { it.key }
         synchronized(shown) {
@@ -258,7 +262,7 @@ object ScreenTextReader {
         val key = blocks.joinToString("|") { it.key }
         if (key == phoneSeenKey) phoneSeenCount++ else { phoneSeenKey = key; phoneSeenCount = 1 }
         // İçerik değişince (yeni mesaj) eski panel kalır, yenisi iki taramada oturur
-        if (phoneSeenCount >= 2) phoneBlocks = blocks
+        if (phoneSeenCount >= 2 || lineCount >= 3) phoneBlocks = blocks
     }
 
     /** Telefonun soluna ayrı panel: başlık + her mesaj ayrı balon. */
@@ -304,7 +308,13 @@ object ScreenTextReader {
         val sc = scope ?: run { pending.remove(b.key); return }
         sc.launch {
             try {
-                val tr = slots.withPermit { CevirixEngine.translateLine(b.en) }
+                // Önce internetsiz çeviri anında, Gemini'ninki gelince değiştirilir
+                val tr = slots.withPermit {
+                    CevirixEngine.translateLineFast(b.en) { better ->
+                        cache[b.key] = better.trim()
+                        publish()
+                    }
+                }
                 cache[b.key] = tr?.trim().orEmpty()
                 publish()
             } finally {
@@ -338,6 +348,8 @@ object ScreenTextReader {
         if (!force && sig == lastSig && nowMs - lastSentAt < REFRESH_MS) return
         lastSig = sig
         lastSentAt = nowMs
+        val st = "Ekran yazıları: $lastLineCount satır görüldü, ${items.size} balon"
+        if (AppState.menuStatus.value != st) AppState.menuStatus.value = st
         CevirixEngine.setScreen(SOURCE, items)
     }
 

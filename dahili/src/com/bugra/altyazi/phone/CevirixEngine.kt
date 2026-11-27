@@ -187,6 +187,23 @@ object CevirixEngine {
         return runCatching { translator.offline(en) }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
+    /**
+     * Hızlı tek satır çeviri: önce sözlük / internetsiz çeviri anında döner, Gemini arkada çalışır ve daha iyi
+     * çeviri gelince [onBetter] ile bildirilir. İnternetsiz model hazır değilse Gemini beklenir.
+     */
+    suspend fun translateLineFast(en: String, onBetter: (String) -> Unit): String? {
+        translator.cached(en)?.let { return it }
+        OfflineSlang.translateFromPhrasesOnly(en)?.let { return it }
+        val off = runCatching { translator.offline(en) }.getOrNull()?.takeIf { it.isNotBlank() }
+        if (!translator.geminiAvailable) return off
+        if (off == null) return runCatching { translator.gemini(en) }.getOrNull()?.takeIf { it.isNotBlank() }
+        scope.launch {
+            val g = runCatching { translator.gemini(en) }.getOrNull()
+            if (!g.isNullOrBlank() && g != off) onBetter(g)
+        }
+        return off
+    }
+
     // Ekran örtüleri birden çok kaynaktan gelir (GTA telefon/harita, menü balonları); TV'ye tek liste gider.
     private val screenSources = java.util.concurrent.ConcurrentHashMap<String, List<Map<String, Any?>>>()
 

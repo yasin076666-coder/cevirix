@@ -129,7 +129,9 @@ class CevirixActivity : AppCompatActivity() {
                 launch { AppState.streaming.collect { renderStreaming(it) } }
                 launch { AppState.screenItems.collect { renderScreenItems(it) } }
                 launch {
-                    AppState.gtaStatus.collect { st ->
+                    kotlinx.coroutines.flow.combine(AppState.gtaStatus, AppState.menuStatus) { a, b ->
+                        listOf(a, b).filter { it.isNotBlank() }.joinToString("\n")
+                    }.collect { st ->
                         val t = findViewById<TextView>(R.id.gtaStatus)
                         t.text = st
                         t.visibility = if (st.isBlank()) View.GONE else View.VISIBLE

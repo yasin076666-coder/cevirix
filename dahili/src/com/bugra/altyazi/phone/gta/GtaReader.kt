@@ -218,6 +218,9 @@ class GtaReader(
 
     private fun remember(t: String, tr: String) { session[t] = tr; memory.put(t, tr) }
 
+    /** Gemini'nin daha iyi çevirisi geldi: hafızayı güncelle, panel bir sonraki okumada yenilenir. */
+    fun upgrade(t: String, tr: String) = remember(t, tr)
+
     // ---- harita kartı ----
 
     private fun offerMap(frame: VideoFrame, now: Long) {

@@ -52,7 +52,7 @@ object GtaBridge {
                 blocked = { false },
                 game = { if (gtaSeen) "gta-6" else null },
                 sharePool = { false },
-                deviceTranslate = { CevirixEngine.translateLine(it) },
+                deviceTranslate = { en -> CevirixEngine.translateLineFast(en) { better -> reader?.upgrade(en, better) } },
                 onGta6Seen = { gtaSeen = true },
                 onRulesChanged = {},
             )
@@ -104,6 +104,10 @@ object GtaBridge {
     /** Altyazı satırı oyunun telefonundan / arayüzünden mi (atılsın mı)? [box] kareye göre 0–1. */
     fun dropLine(text: String, box: LiveBox?): Boolean =
         try { reader?.dropLine?.invoke(text, box) ?: false } catch (e: Throwable) { false }
+
+    /** Kutu oyundaki telefonun içinde mi (GTA 6)? */
+    fun insidePhone(box: LiveBox?): Boolean =
+        try { box != null && (reader?.rules?.insidePhone(box, clock.nowMs()) ?: false) } catch (e: Throwable) { false }
 
     /** Harita açık: altyazı okunmasın. */
     fun subtitlesSuppressed(): Boolean = try { reader?.subtitlesSuppressed() ?: false } catch (e: Throwable) { false }
